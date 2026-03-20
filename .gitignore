@@ -1,0 +1,66 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Virtual environments
+.venv*/
+venv/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+
+# RAG / vector store
+chroma_db/
+*.db
+*.sqlite
+*.sqlite3
+
+# Model cache
+.cache/
+*.onnx
+*.tar.gz
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V8
+.Trashes
+
+# Logs
+*.log
+logs/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
