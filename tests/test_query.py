@@ -1,12 +1,13 @@
 # tests/test_query.py
+from src.utils.retrieval.retriever import query_rag
+from dotenv import load_dotenv
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..")))
 
-from dotenv import load_dotenv
 load_dotenv()
 
-from rag.retrieval.retriever import query_rag
 
 CHROMA_PATH = os.getenv("CHROMA_PATH", "./chroma_db")
 

@@ -3,11 +3,11 @@ import os
 import hashlib
 from dotenv import load_dotenv
 
-from rag.connector.local_connector import load_documents
-from rag.ingestion.parser import parse_document
-from rag.ingestion.chunker import chunk_text
-from rag.ingestion.embedder import embed_texts
-from rag.store.vector_store import get_collection, add_chunks, collection_count
+from utils.connector.local_connector import load_documents
+from utils.ingestion.parser import parse_document
+from utils.ingestion.chunker import chunk_text
+from utils.ingestion.embedder import embed_texts
+from utils.store.vector_store import get_collection, add_chunks, collection_count
 
 load_dotenv()
 
@@ -66,7 +66,8 @@ def ingest():
         add_chunks(collection, chunks, embeddings, metadata, ids)
         total_chunks += len(chunks)
 
-    print(f"\n=== Done. Total chunks in store: {collection_count(collection)} ===")
+    print(
+        f"\n=== Done. Total chunks in store: {collection_count(collection)} ===")
 
 
 if __name__ == "__main__":

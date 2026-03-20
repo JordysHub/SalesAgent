@@ -1,6 +1,6 @@
 # rag/retrieval/retriever.py
-from rag.ingestion.embedder import embed_texts
-from rag.store.vector_store import get_collection
+from src.utils.ingestion.embedder import embed_texts
+from src.utils.store.vector_store import get_collection
 import os
 
 

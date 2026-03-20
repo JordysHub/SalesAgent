@@ -1,7 +1,7 @@
 # tests/test_inspect_chunks.py
 import os
 from dotenv import load_dotenv
-from rag.store.vector_store import get_collection
+from src.utils.store.vector_store import get_collection
 
 load_dotenv()
 

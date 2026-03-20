@@ -64,3 +64,6 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# all data and documents
+data/
