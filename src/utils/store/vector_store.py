@@ -1,37 +1,52 @@
-# rag/store/vector_store.py
-import chromadb
-from chromadb.config import Settings
+# src/utils/store/vector_store.py
+import os
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, VectorParams, PointStruct
+import uuid
+
+COLLECTION_NAME = "rag_docs"
+VECTOR_SIZE = 384  # all-MiniLM-L6-v2 dimension
 
 _client = None
-_collection = None
 
 
-def get_collection(chroma_path: str, collection_name: str = "rag_docs"):
-    global _client, _collection
-    if _collection is None:
-        _client = chromadb.PersistentClient(path=chroma_path)
-        _collection = _client.get_or_create_collection(
-            name=collection_name,
-            metadata={"hnsw:space": "cosine"},
+def get_client() -> QdrantClient:
+    global _client
+    if _client is None:
+        _client = QdrantClient(
+            url=os.getenv("QDRANT_URL"),
+            api_key=os.getenv("QDRANT_API_KEY"),
         )
-    return _collection
+    return _client
 
 
-def add_chunks(
-    collection,
-    chunks: list[str],
-    embeddings: list[list[float]],
-    metadata: list[dict],
-    ids: list[str],
-):
-    collection.add(
-        documents=chunks,
-        embeddings=embeddings,
-        metadatas=metadata,
-        ids=ids,
-    )
-    print(f"[store] Added {len(chunks)} chunk(s) to collection.")
+def get_collection():
+    client = get_client()
+    existing = [c.name for c in client.get_collections().collections]
+    if COLLECTION_NAME not in existing:
+        client.create_collection(
+            collection_name=COLLECTION_NAME,
+            vectors_config=VectorParams(
+                size=VECTOR_SIZE, distance=Distance.COSINE),
+        )
+        print(f"[store] Created collection: {COLLECTION_NAME}")
+    return client
 
 
-def collection_count(collection) -> int:
-    return collection.count()
+def add_chunks(chunks, embeddings, metadata, ids):
+    client = get_collection()
+    points = [
+        PointStruct(
+            id=str(uuid.uuid5(uuid.NAMESPACE_DNS, id_)),
+            vector=embedding,
+            payload={**meta, "text": chunk}
+        )
+        for chunk, embedding, meta, id_ in zip(chunks, embeddings, metadata, ids)
+    ]
+    client.upsert(collection_name=COLLECTION_NAME, points=points)
+    print(f"[store] Upserted {len(points)} chunk(s)")
+
+
+def collection_count():
+    client = get_client()
+    return client.count(collection_name=COLLECTION_NAME).count

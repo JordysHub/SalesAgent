@@ -1,9 +1,9 @@
-
-chromadb
+numpy<2
+qdrant-client
+sentence-transformers
 tiktoken
-langchain
-langchain-community
 pypdf
 python-docx
 python-dotenv
-pytest
+fastapi
+uvicorn

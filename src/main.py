@@ -3,16 +3,15 @@ import os
 import hashlib
 from dotenv import load_dotenv
 
-from utils.connector.local_connector import load_documents
-from utils.ingestion.parser import parse_document
-from utils.ingestion.chunker import chunk_text
-from utils.ingestion.embedder import embed_texts
-from utils.store.vector_store import get_collection, add_chunks, collection_count
+from src.utils.connector.local_connector import load_documents
+from src.utils.ingestion.parser import parse_document
+from src.utils.ingestion.chunker import chunk_text
+from src.utils.ingestion.embedder import embed_texts
+from src.utils.store.vector_store import add_chunks, collection_count
 
 load_dotenv()
 
-DOCS_PATH = os.getenv("DOCS_PATH", "./data/documents")
-CHROMA_PATH = os.getenv("CHROMA_PATH", "./chroma_db")
+DOCS_PATH = os.getenv("DOCS_PATH", "./documents")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "all-MiniLM-L6-v2")
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 512))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", 50))
@@ -26,11 +25,10 @@ def make_chunk_id(filename: str, chunk_index: int) -> str:
 def ingest():
     print("=== RAG Ingestion Pipeline ===")
 
-    collection = get_collection(CHROMA_PATH)
     documents = load_documents(DOCS_PATH)
 
     if not documents:
-        print("No documents found. Add files to ./data/documents and re-run.")
+        print("No documents found. Add files to ./documents and re-run.")
         return
 
     total_chunks = 0
@@ -63,11 +61,10 @@ def ingest():
             for i in range(len(chunks))
         ]
 
-        add_chunks(collection, chunks, embeddings, metadata, ids)
+        add_chunks(chunks, embeddings, metadata, ids)
         total_chunks += len(chunks)
 
-    print(
-        f"\n=== Done. Total chunks in store: {collection_count(collection)} ===")
+    print(f"\n=== Done. Total chunks in store: {collection_count()} ===")
 
 
 if __name__ == "__main__":
