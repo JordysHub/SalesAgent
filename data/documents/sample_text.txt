@@ -1,0 +1,21 @@
+Project Alpha - Overview
+
+Project Alpha is an internal initiative to modernise the company's data infrastructure.
+The project spans three phases: assessment, migration, and validation.
+
+Phase 1 - Assessment
+The team will audit existing data pipelines, identify bottlenecks, and document all data sources.
+This phase is expected to take 6 weeks and involves the data engineering and analytics teams.
+
+Phase 2 - Migration
+All legacy ETL jobs will be migrated to the new platform.
+Data quality checks will be enforced at every stage.
+Rollback procedures must be defined before any migration begins.
+
+Phase 3 - Validation
+Post-migration, a 4-week parallel run will confirm data consistency.
+KPIs include zero data loss, latency under 200ms, and 99.9% uptime.
+
+Owner: Jane Smith
+Status: In Progress
+Last Updated: March 2026

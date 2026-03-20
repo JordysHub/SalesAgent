@@ -1,0 +1,9 @@
+sentence-transformers
+chromadb
+tiktoken
+langchain
+langchain-community
+pypdf
+python-docx
+python-dotenv
+unstructured
