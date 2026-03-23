@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 from src.utils.retrieval.retriever import query_rag
+from src.utils.store.vector_store import collection_count
 
 load_dotenv()
 
@@ -24,6 +25,12 @@ class QueryResponse(BaseModel):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/stats")
+def stats():
+    count = collection_count()
+    return {"total_chunks": count}
 
 
 @app.post("/query", response_model=QueryResponse)

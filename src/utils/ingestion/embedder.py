@@ -1,18 +1,18 @@
 # src/utils/ingestion/embedder.py
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 
 _model = None
 
 
-def get_model(model_name: str = "all-MiniLM-L6-v2") -> SentenceTransformer:
+def get_model():
     global _model
     if _model is None:
-        print(f"[embedder] Loading model: {model_name}")
-        _model = SentenceTransformer(model_name)
+        print("[embedder] Loading fastembed model...")
+        _model = TextEmbedding("sentence-transformers/all-MiniLM-L6-v2")
     return _model
 
 
-def embed_texts(texts: list[str], model_name: str = "all-MiniLM-L6-v2") -> list[list[float]]:
-    model = get_model(model_name)
-    embeddings = model.encode(texts, show_progress_bar=False)
-    return embeddings.tolist()
+def embed_texts(texts: list[str], model_name: str = None) -> list[list[float]]:
+    model = get_model()
+    embeddings = list(model.embed(texts))
+    return [e.tolist() for e in embeddings]
