@@ -3,7 +3,7 @@ name: Ingest Documents
 on:
   push:
     paths:
-      - 'documents/**'
+      - 'data/documents/**'
   workflow_dispatch:  # also allow manual trigger
 
 jobs:
@@ -25,5 +25,5 @@ jobs:
         env:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
-          DOCS_PATH: ./documents
+          DOCS_PATH: data/documents
         run: python -m src.main
