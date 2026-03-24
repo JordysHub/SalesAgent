@@ -39,3 +39,4 @@ jobs:
             --set-env-vars \
               QDRANT_URL=${{ secrets.QDRANT_URL }} \
               QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}
+              GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
