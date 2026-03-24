@@ -4,7 +4,7 @@ on:
   workflow_dispatch:  # manual trigger only
 
 jobs:
-  build-and-push:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,3 +24,18 @@ jobs:
           context: .
           push: true
           tags: ragregistry1337.azurecr.io/rag-api:latest
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Container Apps
+        run: |
+          az containerapp update \
+            --name rag-api \
+            --resource-group rag-rg \
+            --image ragregistry1337.azurecr.io/rag-api:latest \
+            --set-env-vars \
+              QDRANT_URL=${{ secrets.QDRANT_URL }} \
+              QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}
