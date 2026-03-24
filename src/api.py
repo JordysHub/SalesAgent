@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 from src.utils.retrieval.retriever import query_rag
 from src.utils.store.vector_store import collection_count
+from src.utils.rfp.answerer import answer_question
 
 load_dotenv()
 
@@ -12,14 +13,28 @@ app = FastAPI()
 
 
 class QueryRequest(BaseModel):
-    question: str = Field(..., description="The question to search for",
-                          example="What is this document about?")
+    question: str = Field(..., description="The question to search for", example="What is this document about?")
     top_k: int = Field(5, description="Number of results to return", example=5)
+
+
+class AnswerRequest(BaseModel):
+    question: str = Field(..., description="The question to ask", example="What is this document about?")
+    top_k: int = Field(5, description="Number of chunks to retrieve", example=5)
+    include_chunks: bool = Field(False, description="Include raw chunks in response")
 
 
 class QueryResponse(BaseModel):
     question: str
     results: list[dict]
+
+
+class AnswerResponse(BaseModel):
+    answer: str
+    sources: list[str]
+    chunks_used: int
+    chunks: list[dict] = []
+    low_confidence: bool = False
+    avg_score: float = 0.0
 
 
 @app.get("/health")
@@ -37,6 +52,16 @@ def stats():
 def query(request: QueryRequest):
     results = query_rag(request.question, top_k=request.top_k)
     return {"question": request.question, "results": results}
+
+
+@app.post("/answer", response_model=AnswerResponse)
+def answer(request: AnswerRequest):
+    result = answer_question(
+        request.question,
+        top_k=request.top_k,
+        include_chunks=request.include_chunks
+    )
+    return result
 
 
 def custom_openapi():
@@ -80,6 +105,57 @@ def custom_openapi():
                                         "properties": {
                                             "question": {"type": "string"},
                                             "results": {"type": "array"}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "/answer": {
+                "post": {
+                    "summary": "Answer a question using retrieved context",
+                    "operationId": "answerQuestion",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["question"],
+                                    "properties": {
+                                        "question": {
+                                            "type": "string",
+                                            "description": "The question to answer"
+                                        },
+                                        "top_k": {
+                                            "type": "integer",
+                                            "description": "Number of chunks to retrieve",
+                                            "default": 5
+                                        },
+                                        "include_chunks": {
+                                            "type": "boolean",
+                                            "description": "Include raw chunks in response",
+                                            "default": False
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "responses": {
+                        "200": {
+                            "description": "Successful response",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "answer": {"type": "string"},
+                                            "sources": {"type": "array"},
+                                            "chunks_used": {"type": "integer"},
+                                            "chunks": {"type": "array"}
                                         }
                                     }
                                 }
