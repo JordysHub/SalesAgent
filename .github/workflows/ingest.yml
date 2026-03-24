@@ -1,0 +1,43 @@
+name: Ingest Documents
+
+on:
+  workflow_dispatch:  # manual trigger
+  push:
+    paths:
+      - 'data/documents/**'  # auto trigger when documents change
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Download documents from Azure Blob Storage
+        run: |
+          az storage blob download-batch \
+            --account-name ragdocuments1337 \
+            --source documents \
+            --destination ./data/documents \
+            --account-key ${{ secrets.STORAGE_ACCOUNT_KEY }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run ingestion
+        env:
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          DOCS_PATH: ./data/documents
+        run: python -m src.main
