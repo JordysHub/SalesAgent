@@ -37,17 +37,14 @@ def _parse_pdf(path: str) -> str:
 def _parse_docx(path: str) -> str:
     from docx import Document
     doc = Document(path)
-    return "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
-
-def _parse_docx(path: str) -> str:
-    from docx import Document
-    doc = Document(path)
     parts = []
 
+    # Extract paragraphs
     for para in doc.paragraphs:
         if para.text.strip():
             parts.append(para.text.strip())
 
+    # Extract tables
     for table in doc.tables:
         for row in table.rows:
             row_text = " | ".join(
