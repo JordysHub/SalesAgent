@@ -20,12 +20,15 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Download documents from Azure Blob Storage
+        env:
+          AZURE_STORAGE_KEY: ${{ secrets.STORAGE_ACCOUNT_KEY }}
         run: |
+          mkdir -p ./data/documents
           az storage blob download-batch \
             --account-name ragdocuments1337 \
             --source documents \
             --destination ./data/documents \
-            --account-key ${{ secrets.STORAGE_ACCOUNT_KEY }}
+            --account-key "$AZURE_STORAGE_KEY"
 
       - name: Set up Python
         uses: actions/setup-python@v4
