@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'documents/**'
+  workflow_dispatch:  # also allow manual trigger
 
 jobs:
   ingest:
