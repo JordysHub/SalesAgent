@@ -28,10 +28,31 @@ async def log_requests(request: Request, call_next):
     body = await request.body()
     response = await call_next(request)
     duration = round((time.time() - start) * 1000)
+
+    if request.url.path in ("/health", "/stats"):
+        return response
+
+    user_agent = request.headers.get("user-agent", "unknown")
+    client_id = request.headers.get("x-client-id", None)
+    client_ip = request.headers.get("x-forwarded-for", request.client.host)
+
+    if client_id:
+        caller = client_id
+    elif "curl" in user_agent.lower():
+        caller = "curl"
+    elif "swagger" in user_agent.lower() or "openapi" in user_agent.lower():
+        caller = "swagger"
+    elif "python" in user_agent.lower():
+        caller = "python-script"
+    else:
+        caller = user_agent[:50]
+
     logger.info(
         f"endpoint={request.url.path} "
         f"status={response.status_code} "
         f"ms={duration} "
+        f"caller={caller} "
+        f"ip={client_ip} "
         f"body={body.decode()[:300]}"
     )
     return response

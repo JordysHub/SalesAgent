@@ -1,14 +1,17 @@
 # scripts/delete_source.py
+from src.utils.connector.blob_connector import load_registry, save_registry
+from qdrant_client.models import Filter, FieldCondition, MatchValue, PayloadSchemaType
+from qdrant_client import QdrantClient
+from dotenv import load_dotenv
 import os
 import sys
-from dotenv import load_dotenv
-from qdrant_client import QdrantClient
-from qdrant_client.models import Filter, FieldCondition, MatchValue, PayloadSchemaType
-from collections import defaultdict
+sys.path.insert(0, os.path.abspath("."))
 
 load_dotenv()
 
-client = QdrantClient(url=os.getenv("QDRANT_URL"), api_key=os.getenv("QDRANT_API_KEY"))
+client = QdrantClient(url=os.getenv("QDRANT_URL"),
+                      api_key=os.getenv("QDRANT_API_KEY"))
+
 
 def get_all_sources():
     results = client.scroll(
@@ -19,6 +22,7 @@ def get_all_sources():
     )[0]
     return list({r.payload.get("filename") for r in results if r.payload.get("filename")})
 
+
 def delete_source(source: str):
     client.create_payload_index(
         collection_name="rag_docs",
@@ -28,10 +32,27 @@ def delete_source(source: str):
     client.delete(
         collection_name="rag_docs",
         points_selector=Filter(
-            must=[FieldCondition(key="filename", match=MatchValue(value=source))]
+            must=[FieldCondition(
+                key="filename", match=MatchValue(value=source))]
         )
     )
-    print(f"Deleted: {source}")
+    print(f"Deleted chunks: {source}")
+
+
+def remove_from_registry(sources: list[str]):
+    registry = load_registry()
+    removed = []
+    for source in sources:
+        if source in registry:
+            del registry[source]
+            removed.append(source)
+    if removed:
+        save_registry(registry)
+        for s in removed:
+            print(f"Removed from registry: {s}")
+    else:
+        print("No registry entries found for deleted sources.")
+
 
 if len(sys.argv) < 2:
     print("Usage:")
@@ -53,6 +74,7 @@ if sys.argv[1] == "--all":
         sys.exit(0)
     for source in sources:
         delete_source(source)
+    remove_from_registry(sources)
     print(f"\nDone. Deleted {len(sources)} source(s).")
 else:
     source = sys.argv[1]
@@ -61,3 +83,4 @@ else:
         print("Aborted.")
         sys.exit(0)
     delete_source(source)
+    remove_from_registry([source])
