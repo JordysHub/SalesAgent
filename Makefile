@@ -1,6 +1,9 @@
 serve:
 	uvicorn src.api:app --reload --port 8000
 
+logs:
+	az containerapp logs show --name rag-api --resource-group rag-rg --follow
+
 ingest:
 	python -m src.ingest
 
