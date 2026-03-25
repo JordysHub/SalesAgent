@@ -132,7 +132,7 @@ def ingest():
 
     save_registry(registry)
 
-    print(f"\n=== Done. Ingested: {ingested_count} | Skipped: {ingested_count} | Total chunks: {collection_count()} ===")
+    print(f"\n=== Done. Ingested: {ingested_count} | Skipped: {skipped_count} | Total chunks: {collection_count()} ===")
 
 if __name__ == "__main__":
     ingest()
