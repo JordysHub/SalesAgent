@@ -44,7 +44,7 @@ def answer_question(question: str, top_k: int = 5, include_chunks: bool = False)
     chunks = query_rag(question, top_k=top_k)
 
     avg_score = sum(c["score"] for c in chunks) / len(chunks) if chunks else 0
-    low_confidence = avg_score < 0.4  # warn but don't block
+    low_confidence = avg_score < 0.3  # warn but don't block
 
     answer = synthesise(question, chunks)
 
