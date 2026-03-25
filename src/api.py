@@ -1,15 +1,21 @@
 # src/api.py
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, BackgroundTasks
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 from src.utils.retrieval.retriever import query_rag
 from src.utils.store.vector_store import collection_count
 from src.utils.rfp.answerer import answer_question
+from src.utils.rfp.orchestrator import extract_questions
+from src.utils.rfp.answer_agent import answer_all
+from src.utils.rfp.qa_verifier import verify
+from src.utils.rfp.composer import compose_proposal
+from src.utils.connector.blob_connector import get_blob_service
 
+import os
 import time
 import logging
-
+import tempfile
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,9 +29,11 @@ logging.getLogger("fastembed").setLevel(logging.WARNING)
 
 load_dotenv()
 
+STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT", "ragdocuments1337")
+CONTAINER_NAME = os.getenv("AZURE_CONTAINER_NAME", "documents")
+
 app = FastAPI()
 
-# Immediately after app = FastAPI()
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start = time.time()
@@ -61,21 +69,26 @@ async def log_requests(request: Request, call_next):
     )
     return response
 
-class QueryRequest(BaseModel):
-    question: str = Field(..., description="The question to search for", example="What is this document about?")
-    top_k: int = Field(5, description="Number of results to return", example=5)
 
+# ─── Models ──────────────────────────────────────────────────────────────────
+
+class QueryRequest(BaseModel):
+    question: str = Field(..., description="The question to search for")
+    top_k: int = Field(5, description="Number of results to return")
 
 class AnswerRequest(BaseModel):
-    question: str = Field(..., description="The question to ask", example="What is this document about?")
-    top_k: int = Field(5, description="Number of chunks to retrieve", example=5)
+    question: str = Field(..., description="The question to ask")
+    top_k: int = Field(5, description="Number of chunks to retrieve")
     include_chunks: bool = Field(False, description="Include raw chunks in response")
 
+class PipelineRequest(BaseModel):
+    filename: str = Field(..., description="RFP filename in blob rfp-inputs/ folder (e.g. RFP_TechCorp.docx)")
+    top_k: int = Field(8, description="Chunks to retrieve per question")
+    max_questions: int = Field(0, description="Maximum questions to process. 0 = all questions")
 
 class QueryResponse(BaseModel):
     question: str
     results: list[dict]
-
 
 class AnswerResponse(BaseModel):
     answer: str
@@ -85,23 +98,32 @@ class AnswerResponse(BaseModel):
     low_confidence: bool = False
     avg_score: float = 0.0
 
+class PipelineResponse(BaseModel):
+    status: str
+    rfp_filename: str
+    questions_extracted: int
+    questions_answered: int
+    questions_verified: int
+    questions_flagged: int
+    output_filename: str
+    output_url: str
+
+
+# ─── Routes ──────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
 
 @app.get("/stats")
 def stats():
     count = collection_count()
     return {"total_chunks": count}
 
-
 @app.post("/query", response_model=QueryResponse)
 def query(request: QueryRequest):
     results = query_rag(request.question, top_k=request.top_k)
     return {"question": request.question, "results": results}
-
 
 @app.post("/answer", response_model=AnswerResponse)
 def answer(request: AnswerRequest):
@@ -112,6 +134,77 @@ def answer(request: AnswerRequest):
     )
     return result
 
+@app.post("/pipeline", response_model=PipelineResponse)
+def pipeline(request: PipelineRequest):
+    logger.info(f"[pipeline] Starting for {request.filename}")
+
+    # download RFP from blob
+    blob_path = f"rfp-inputs/{request.filename}"
+    ext = os.path.splitext(request.filename)[1].lower()
+
+    service = get_blob_service()
+    blob_client = service.get_blob_client(container=CONTAINER_NAME, blob=blob_path)
+
+    if not blob_client.exists():
+        raise ValueError(f"RFP not found in blob: {blob_path}")
+
+    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+        tmp_path = tmp.name
+        tmp.write(blob_client.download_blob().readall())
+
+    logger.info(f"[pipeline] Downloaded {request.filename} to temp file")
+
+    # step 1: extract questions
+    questions = extract_questions(tmp_path)
+    os.unlink(tmp_path)
+
+    if request.max_questions and request.max_questions > 0:
+        questions = questions[:request.max_questions]
+
+    logger.info(f"[pipeline] Extracted {len(questions)} questions")
+
+    # step 2: answer
+    results = answer_all(questions, top_k=request.top_k)
+
+    # step 3: verify
+    verified = verify(results, answer_question, top_k=request.top_k)
+
+    # step 4: compose
+    output_filename = f"proposal_{request.filename}"
+    output_path = f"/tmp/{output_filename}"
+    compose_proposal(verified, request.filename, output_path)
+
+    # upload proposal to blob
+    output_blob_path = f"rfp-outputs/{output_filename}"
+    output_blob_client = service.get_blob_client(
+        container=CONTAINER_NAME,
+        blob=output_blob_path
+    )
+    with open(output_path, "rb") as f:
+        output_blob_client.upload_blob(f, overwrite=True)
+
+    os.unlink(output_path)
+
+    output_url = f"https://{STORAGE_ACCOUNT}.blob.core.windows.net/{CONTAINER_NAME}/{output_blob_path}"
+
+    questions_verified = sum(1 for r in verified if r.get("verified", False))
+    questions_flagged = sum(1 for r in verified if not r.get("verified", True))
+
+    logger.info(f"[pipeline] Done. {questions_verified}/{len(verified)} verified. Output: {output_blob_path}")
+
+    return PipelineResponse(
+        status="completed",
+        rfp_filename=request.filename,
+        questions_extracted=len(questions),
+        questions_answered=len(results),
+        questions_verified=questions_verified,
+        questions_flagged=questions_flagged,
+        output_filename=output_filename,
+        output_url=output_url
+    )
+
+
+# ─── OpenAPI ─────────────────────────────────────────────────────────────────
 
 def custom_openapi():
     return {
@@ -130,36 +223,14 @@ def custom_openapi():
                                     "type": "object",
                                     "required": ["question"],
                                     "properties": {
-                                        "question": {
-                                            "type": "string",
-                                            "description": "The question to search for"
-                                        },
-                                        "top_k": {
-                                            "type": "integer",
-                                            "description": "Number of results to return",
-                                            "default": 5
-                                        }
+                                        "question": {"type": "string"},
+                                        "top_k": {"type": "integer", "default": 5}
                                     }
                                 }
                             }
                         }
                     },
-                    "responses": {
-                        "200": {
-                            "description": "Successful response",
-                            "content": {
-                                "application/json": {
-                                    "schema": {
-                                        "type": "object",
-                                        "properties": {
-                                            "question": {"type": "string"},
-                                            "results": {"type": "array"}
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    "responses": {"200": {"description": "Successful response"}}
                 }
             },
             "/answer": {
@@ -174,20 +245,35 @@ def custom_openapi():
                                     "type": "object",
                                     "required": ["question"],
                                     "properties": {
-                                        "question": {
+                                        "question": {"type": "string"},
+                                        "top_k": {"type": "integer", "default": 5},
+                                        "include_chunks": {"type": "boolean", "default": False}
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "responses": {"200": {"description": "Successful response"}}
+                }
+            },
+            "/pipeline": {
+                "post": {
+                    "summary": "Run full RFP response pipeline",
+                    "operationId": "runPipeline",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["filename"],
+                                    "properties": {
+                                        "filename": {
                                             "type": "string",
-                                            "description": "The question to answer"
+                                            "description": "RFP filename in blob rfp-inputs/ folder"
                                         },
-                                        "top_k": {
-                                            "type": "integer",
-                                            "description": "Number of chunks to retrieve",
-                                            "default": 5
-                                        },
-                                        "include_chunks": {
-                                            "type": "boolean",
-                                            "description": "Include raw chunks in response",
-                                            "default": False
-                                        }
+                                        "top_k": {"type": "integer", "default": 8},
+                                        "max_questions": {"type": "integer", "default": 18}
                                     }
                                 }
                             }
@@ -195,16 +281,20 @@ def custom_openapi():
                     },
                     "responses": {
                         "200": {
-                            "description": "Successful response",
+                            "description": "Pipeline completed",
                             "content": {
                                 "application/json": {
                                     "schema": {
                                         "type": "object",
                                         "properties": {
-                                            "answer": {"type": "string"},
-                                            "sources": {"type": "array"},
-                                            "chunks_used": {"type": "integer"},
-                                            "chunks": {"type": "array"}
+                                            "status": {"type": "string"},
+                                            "rfp_filename": {"type": "string"},
+                                            "questions_extracted": {"type": "integer"},
+                                            "questions_answered": {"type": "integer"},
+                                            "questions_verified": {"type": "integer"},
+                                            "questions_flagged": {"type": "integer"},
+                                            "output_filename": {"type": "string"},
+                                            "output_url": {"type": "string"}
                                         }
                                     }
                                 }
@@ -215,6 +305,5 @@ def custom_openapi():
             }
         }
     }
-
 
 app.openapi = custom_openapi
