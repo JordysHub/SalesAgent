@@ -27,6 +27,8 @@ def list_blobs() -> list[dict]:
     for blob in container.list_blobs():
         ext = os.path.splitext(blob.name)[1].lower()
         if ext in SUPPORTED_EXTENSIONS and blob.name != REGISTRY_BLOB:
+            if blob.name.startswith("rfp-inputs/"):  # skip RFP folder
+                continue
             last_modified = blob.last_modified.astimezone(
                 timezone.utc).isoformat()
             blobs.append({

@@ -1,7 +1,8 @@
 # src/api.py
-from fastapi import FastAPI, Request, BackgroundTasks
+from fastapi import FastAPI, Request
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+from datetime import datetime, timedelta, timezone
 
 from src.utils.retrieval.retriever import query_rag
 from src.utils.store.vector_store import collection_count
@@ -11,6 +12,8 @@ from src.utils.rfp.answer_agent import answer_all
 from src.utils.rfp.qa_verifier import verify
 from src.utils.rfp.composer import compose_proposal
 from src.utils.connector.blob_connector import get_blob_service
+
+from azure.storage.blob import generate_blob_sas, BlobSasPermissions
 
 import os
 import time
@@ -33,6 +36,7 @@ STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT", "ragdocuments1337")
 CONTAINER_NAME = os.getenv("AZURE_CONTAINER_NAME", "documents")
 
 app = FastAPI()
+
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -82,9 +86,9 @@ class AnswerRequest(BaseModel):
     include_chunks: bool = Field(False, description="Include raw chunks in response")
 
 class PipelineRequest(BaseModel):
-    filename: str = Field(..., description="RFP filename in blob rfp-inputs/ folder (e.g. RFP_TechCorp.docx)")
+    filename: str = Field(..., description="RFP filename in blob rfp-inputs/ folder")
     top_k: int = Field(8, description="Chunks to retrieve per question")
-    max_questions: int = Field(0, description="Maximum questions to process. 0 = all questions")
+    max_questions: int = Field(0, description="Maximum questions to process. 0 = all questions.")
 
 class QueryResponse(BaseModel):
     question: str
@@ -107,6 +111,7 @@ class PipelineResponse(BaseModel):
     questions_flagged: int
     output_filename: str
     output_url: str
+    output_url_expires: str
 
 
 # ─── Routes ──────────────────────────────────────────────────────────────────
@@ -138,7 +143,6 @@ def answer(request: AnswerRequest):
 def pipeline(request: PipelineRequest):
     logger.info(f"[pipeline] Starting for {request.filename}")
 
-    # download RFP from blob
     blob_path = f"rfp-inputs/{request.filename}"
     ext = os.path.splitext(request.filename)[1].lower()
 
@@ -155,13 +159,11 @@ def pipeline(request: PipelineRequest):
     logger.info(f"[pipeline] Downloaded {request.filename} to temp file")
 
     # step 1: extract questions
-    questions = extract_questions(tmp_path)
+    all_questions = extract_questions(tmp_path)
     os.unlink(tmp_path)
 
-    if request.max_questions and request.max_questions > 0:
-        questions = questions[:request.max_questions]
-
-    logger.info(f"[pipeline] Extracted {len(questions)} questions")
+    questions = all_questions[:request.max_questions] if request.max_questions > 0 else all_questions
+    logger.info(f"[pipeline] Extracted {len(all_questions)} questions, processing {len(questions)}")
 
     # step 2: answer
     results = answer_all(questions, top_k=request.top_k)
@@ -174,18 +176,24 @@ def pipeline(request: PipelineRequest):
     output_path = f"/tmp/{output_filename}"
     compose_proposal(verified, request.filename, output_path)
 
-    # upload proposal to blob
+    # upload to blob
     output_blob_path = f"rfp-outputs/{output_filename}"
-    output_blob_client = service.get_blob_client(
-        container=CONTAINER_NAME,
-        blob=output_blob_path
-    )
+    output_blob_client = service.get_blob_client(container=CONTAINER_NAME, blob=output_blob_path)
     with open(output_path, "rb") as f:
         output_blob_client.upload_blob(f, overwrite=True)
-
     os.unlink(output_path)
 
-    output_url = f"https://{STORAGE_ACCOUNT}.blob.core.windows.net/{CONTAINER_NAME}/{output_blob_path}"
+    # generate SAS URL valid for 7 days
+    expiry = datetime.now(timezone.utc) + timedelta(days=7)
+    sas_token = generate_blob_sas(
+        account_name=STORAGE_ACCOUNT,
+        container_name=CONTAINER_NAME,
+        blob_name=output_blob_path,
+        account_key=os.getenv("AZURE_STORAGE_KEY"),
+        permission=BlobSasPermissions(read=True),
+        expiry=expiry
+    )
+    output_url = f"https://{STORAGE_ACCOUNT}.blob.core.windows.net/{CONTAINER_NAME}/{output_blob_path}?{sas_token}"
 
     questions_verified = sum(1 for r in verified if r.get("verified", False))
     questions_flagged = sum(1 for r in verified if not r.get("verified", True))
@@ -195,12 +203,13 @@ def pipeline(request: PipelineRequest):
     return PipelineResponse(
         status="completed",
         rfp_filename=request.filename,
-        questions_extracted=len(questions),
+        questions_extracted=len(all_questions),
         questions_answered=len(results),
         questions_verified=questions_verified,
         questions_flagged=questions_flagged,
         output_filename=output_filename,
-        output_url=output_url
+        output_url=output_url,
+        output_url_expires=expiry.strftime("%Y-%m-%d %H:%M UTC")
     )
 
 
@@ -273,7 +282,11 @@ def custom_openapi():
                                             "description": "RFP filename in blob rfp-inputs/ folder"
                                         },
                                         "top_k": {"type": "integer", "default": 8},
-                                        "max_questions": {"type": "integer", "default": 18}
+                                        "max_questions": {
+                                            "type": "integer",
+                                            "default": 0,
+                                            "description": "0 = all questions"
+                                        }
                                     }
                                 }
                             }
@@ -294,7 +307,8 @@ def custom_openapi():
                                             "questions_verified": {"type": "integer"},
                                             "questions_flagged": {"type": "integer"},
                                             "output_filename": {"type": "string"},
-                                            "output_url": {"type": "string"}
+                                            "output_url": {"type": "string"},
+                                            "output_url_expires": {"type": "string"}
                                         }
                                     }
                                 }
