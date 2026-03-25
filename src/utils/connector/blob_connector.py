@@ -1,8 +1,10 @@
-# src/utils/connector/blob_connector.py
 import os
 import json
 from datetime import timezone
+from dotenv import load_dotenv
 from azure.storage.blob import BlobServiceClient
+
+load_dotenv()
 
 STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT", "ragdocuments1337")
 STORAGE_KEY = os.getenv("AZURE_STORAGE_KEY")
@@ -19,7 +21,6 @@ def get_blob_service() -> BlobServiceClient:
 
 
 def list_blobs() -> list[dict]:
-    """List all supported documents in the container with metadata."""
     service = get_blob_service()
     container = service.get_container_client(CONTAINER_NAME)
     blobs = []
@@ -39,7 +40,6 @@ def list_blobs() -> list[dict]:
 
 
 def download_blob(filename: str, dest_path: str):
-    """Download a single blob to a local path."""
     service = get_blob_service()
     blob_client = service.get_blob_client(
         container=CONTAINER_NAME, blob=filename)
@@ -48,7 +48,6 @@ def download_blob(filename: str, dest_path: str):
 
 
 def load_registry() -> dict:
-    """Load registry.json from blob. Returns empty dict if not found."""
     service = get_blob_service()
     blob_client = service.get_blob_client(
         container=CONTAINER_NAME, blob=REGISTRY_BLOB)
@@ -63,7 +62,6 @@ def load_registry() -> dict:
 
 
 def save_registry(registry: dict):
-    """Upload registry.json to blob."""
     service = get_blob_service()
     blob_client = service.get_blob_client(
         container=CONTAINER_NAME, blob=REGISTRY_BLOB)

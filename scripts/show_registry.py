@@ -1,10 +1,10 @@
-# scripts/show_registry.py
-from src.utils.connector.blob_connector import load_registry
 import os
+import sys
+sys.path.insert(0, os.path.abspath("."))
 from dotenv import load_dotenv
+from src.utils.connector.blob_connector import load_registry
 
 load_dotenv()
-
 
 registry = load_registry()
 
