@@ -43,4 +43,6 @@ jobs:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
           DOCS_PATH: ./data/documents
-        run: python -m src.main
+          CHUNK_SIZE: 256
+          CHUNK_OVERLAP: 40
+        run: python -m src.ingest

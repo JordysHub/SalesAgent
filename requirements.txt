@@ -11,3 +11,4 @@ groq
 fastembed
 qdrant_client
 tiktoken
+azure-storage-blob

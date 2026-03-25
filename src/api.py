@@ -1,5 +1,5 @@
 # src/api.py
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
@@ -7,10 +7,34 @@ from src.utils.retrieval.retriever import query_rag
 from src.utils.store.vector_store import collection_count
 from src.utils.rfp.answerer import answer_question
 
+import time
+import logging
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s"
+)
+logger = logging.getLogger(__name__)
+
 load_dotenv()
 
 app = FastAPI()
 
+# Immediately after app = FastAPI()
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.time()
+    body = await request.body()
+    response = await call_next(request)
+    duration = round((time.time() - start) * 1000)
+    logger.info(
+        f"endpoint={request.url.path} "
+        f"status={response.status_code} "
+        f"ms={duration} "
+        f"body={body.decode()[:300]}"
+    )
+    return response
 
 class QueryRequest(BaseModel):
     question: str = Field(..., description="The question to search for", example="What is this document about?")
