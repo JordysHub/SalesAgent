@@ -66,4 +66,5 @@ logs/
 htmlcov/
 
 # all data and documents
-data/
+data/rfp_questions.json
+proposal_output.docx
