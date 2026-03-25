@@ -2,7 +2,10 @@ serve:
 	uvicorn src.api:app --reload --port 8000
 
 logs:
-	az containerapp logs show --name rag-api --resource-group rag-rg --follow
+	az containerapp logs show --name rag-api --resource-group rag-rg --follow --tail 50
+
+logs-history:
+	az containerapp logs show --name rag-api --resource-group rag-rg --tail 200 | grep "endpoint="
 
 ingest:
 	python -m src.ingest
