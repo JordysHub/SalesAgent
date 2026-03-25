@@ -28,8 +28,15 @@ delete-all:
 ingest-file:
 	python scripts/ingest_source.py --file $(F)
 
+registry:
+	python scripts/show_registry.py
+
 deploy:
 	gh workflow run deploy.yml
 
 sync:
 	gh workflow run ingest.yml
+
+release:
+	gh workflow run ingest.yml
+	gh workflow run deploy.yml
