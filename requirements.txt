@@ -1,7 +1,5 @@
 numpy<2
 qdrant-client
-sentence-transformers
-tiktoken
 pypdf
 python-docx
 python-dotenv
@@ -9,6 +7,5 @@ fastapi
 uvicorn
 groq
 fastembed
-qdrant_client
-tiktoken
 azure-storage-blob
+requests

@@ -14,6 +14,7 @@ from src.utils.rfp.composer import compose_proposal
 from src.utils.connector.blob_connector import get_blob_service
 
 from azure.storage.blob import generate_blob_sas, BlobSasPermissions
+from pydantic import BaseModel, Field, validator
 
 import os
 import time
@@ -80,10 +81,21 @@ class QueryRequest(BaseModel):
     question: str = Field(..., description="The question to search for")
     top_k: int = Field(5, description="Number of results to return")
 
+    @validator("question")
+    def question_must_not_be_empty(cls, v):
+        if not v.strip():
+            raise ValueError("question must not be empty")
+        return v
 class AnswerRequest(BaseModel):
     question: str = Field(..., description="The question to ask")
     top_k: int = Field(5, description="Number of chunks to retrieve")
     include_chunks: bool = Field(False, description="Include raw chunks in response")
+
+    @validator("question")
+    def question_must_not_be_empty(cls, v):
+        if not v.strip():
+            raise ValueError("question must not be empty")
+        return v
 
 class PipelineRequest(BaseModel):
     filename: str = Field(..., description="RFP filename in blob rfp-inputs/ folder")
@@ -141,6 +153,20 @@ def answer(request: AnswerRequest):
 
 @app.post("/pipeline", response_model=PipelineResponse)
 def pipeline(request: PipelineRequest):
+    """
+    Trigger the full RFP pipeline for the given filename.
+
+    The pipeline consists of four steps: extract questions from the RFP, answer the questions using the knowledge base, verify the answers, and compose the proposal document.
+
+    Parameters:
+        request (PipelineRequest): the request containing the RFP filename and other options
+
+    Returns:
+        PipelineResponse: the response containing the pipeline status, RFP filename, question counts, output filename, and output URL
+
+    Raises:
+        ValueError: if the RFP is not found in the blob
+    """
     logger.info(f"[pipeline] Starting for {request.filename}")
 
     blob_path = f"rfp-inputs/{request.filename}"
@@ -216,6 +242,14 @@ def pipeline(request: PipelineRequest):
 # ─── OpenAPI ─────────────────────────────────────────────────────────────────
 
 def custom_openapi():
+    """
+    Return a custom OpenAPI document for the RAG API.
+
+    The OpenAPI document defines the API endpoints, request and response bodies, and other metadata.
+
+    Returns:
+        dict: the OpenAPI document
+    """
     return {
         "openapi": "3.0.0",
         "info": {"title": "RAG API", "version": "0.1.0"},
