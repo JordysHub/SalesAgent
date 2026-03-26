@@ -66,7 +66,7 @@ def test_answer_missing_question_fails():
 
 
 # ─── Pipeline ────────────────────────────────────────────────────────────────
-
+@pytest.mark.slow
 def test_pipeline_response_shape():
     response = requests.post(f"{BASE_URL}/pipeline", json={
         "filename": "RFP_TechCorp_AI_Platform_2026.docx",
@@ -85,12 +85,12 @@ def test_pipeline_response_shape():
     assert data["output_url"].startswith("https://")
     assert "output_url_expires" in data
 
-
+@pytest.mark.slow
 def test_pipeline_missing_filename_fails():
     response = requests.post(f"{BASE_URL}/pipeline", json={"top_k": 5})
     assert response.status_code == 422
 
-
+@pytest.mark.slow
 def test_pipeline_nonexistent_file_fails():
     response = requests.post(f"{BASE_URL}/pipeline", json={
         "filename": "nonexistent_file.docx",

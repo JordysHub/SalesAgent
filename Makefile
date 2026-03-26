@@ -103,4 +103,10 @@ logs-history:
 	az containerapp logs show --name rag-api --resource-group rag-rg --tail 200 | grep "endpoint="
 
 test:
+	pytest tests/test_api.py -v -m "not slow"
+
+test-full:
 	pytest tests/test_api.py -v
+
+test-local:
+	API_URL=http://localhost:8000 pytest tests/test_api.py -v
