@@ -1,12 +1,9 @@
 name: Build and Deploy
-
 on:
-  workflow_dispatch:  # manual trigger only
-
+  workflow_dispatch:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -42,4 +39,15 @@ jobs:
               GROQ_API_KEY=${{ secrets.GROQ_API_KEY }} \
               AZURE_STORAGE_ACCOUNT=ragdocuments1337 \
               AZURE_CONTAINER_NAME=documents \
-              AZURE_STORAGE_KEY=secretref:storage-account-key
+              AZURE_STORAGE_KEY=secretref:storage-account-key \
+              EMBED_MODEL=sentence-transformers/all-MiniLM-L6-v2 \
+              GROQ_MODEL=llama-3.3-70b-versatile \
+              CHUNK_SIZE=256 \
+              CHUNK_OVERLAP=40 \
+              TOP_K=8 \
+              MIN_SCORE=0.25 \
+              LOW_CONFIDENCE=0.3 \
+              TEMPERATURE=0.0 \
+              QA_MAX_RETRIES=2 \
+              QA_RETRY_TOP_K=3 \
+              SAS_EXPIRY_DAYS=7
