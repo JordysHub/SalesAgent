@@ -1,6 +1,7 @@
 # scripts/ask.py
 import argparse
 import requests
+import os
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
