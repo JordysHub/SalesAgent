@@ -13,6 +13,8 @@ from src.utils.rfp.qa_verifier import verify
 from src.utils.rfp.composer import compose_proposal
 from src.utils.connector.blob_connector import get_blob_service
 
+from src.config import STORAGE_ACCOUNT, CONTAINER_NAME, SAS_EXPIRY_DAYS
+
 from azure.storage.blob import generate_blob_sas, BlobSasPermissions
 from pydantic import BaseModel, Field, validator
 
@@ -32,9 +34,6 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("fastembed").setLevel(logging.WARNING)
 
 load_dotenv()
-
-STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT", "ragdocuments1337")
-CONTAINER_NAME = os.getenv("AZURE_CONTAINER_NAME", "documents")
 
 app = FastAPI()
 

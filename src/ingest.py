@@ -15,11 +15,9 @@ from src.utils.store.vector_store import add_chunks, collection_count
 from qdrant_client import QdrantClient
 from qdrant_client.models import Filter, FieldCondition, MatchValue, PayloadSchemaType
 
-load_dotenv()
+from src.config import EMBED_MODEL, CHUNK_SIZE, CHUNK_OVERLAP, DOCS_PATH, QDRANT_URL, QDRANT_API_KEY
 
-EMBED_MODEL = os.getenv("EMBED_MODEL", "all-MiniLM-L6-v2")
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 256))
-CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", 40))
+load_dotenv()
 
 def make_chunk_id(filename: str, chunk_index: int) -> str:
     raw = f"{filename}::chunk::{chunk_index}"
@@ -47,10 +45,7 @@ def ingest():
         return
 
     registry = load_registry()
-    qdrant = QdrantClient(
-        url=os.getenv("QDRANT_URL"),
-        api_key=os.getenv("QDRANT_API_KEY")
-    )
+    qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
     ingested_count = 0
     skipped_count = 0

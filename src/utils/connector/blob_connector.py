@@ -3,12 +3,11 @@ import json
 from datetime import timezone
 from dotenv import load_dotenv
 from azure.storage.blob import BlobServiceClient
+from src.config import STORAGE_ACCOUNT, STORAGE_KEY, CONTAINER_NAME
 
 load_dotenv()
 
-STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT", "ragdocuments1337")
-STORAGE_KEY = os.getenv("AZURE_STORAGE_KEY")
-CONTAINER_NAME = os.getenv("AZURE_CONTAINER_NAME", "documents")
+
 REGISTRY_BLOB = "registry.json"
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt", ".md"}
 

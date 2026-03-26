@@ -1,5 +1,6 @@
 # src/utils/ingestion/embedder.py
 from fastembed import TextEmbedding
+from src.config import EMBED_MODEL
 
 _model = None
 
@@ -8,7 +9,7 @@ def get_model():
     global _model
     if _model is None:
         print("[embedder] Loading fastembed model...")
-        _model = TextEmbedding("sentence-transformers/all-MiniLM-L6-v2")
+        _model = TextEmbedding(EMBED_MODEL)
     return _model
 
 

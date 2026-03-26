@@ -3,9 +3,7 @@ import os
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 import uuid
-
-COLLECTION_NAME = "rag_docs"
-VECTOR_SIZE = 384  # all-MiniLM-L6-v2 dimension
+from src.config import VECTOR_SIZE, QDRANT_URL, QDRANT_API_KEY, COLLECTION_NAME
 
 _client = None
 
@@ -13,10 +11,7 @@ _client = None
 def get_client() -> QdrantClient:
     global _client
     if _client is None:
-        _client = QdrantClient(
-            url=os.getenv("QDRANT_URL"),
-            api_key=os.getenv("QDRANT_API_KEY"),
-        )
+        _client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
     return _client
 
 

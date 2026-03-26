@@ -16,11 +16,10 @@ import json
 import requests
 from dotenv import load_dotenv
 from src.utils.ingestion.parser import parse_document
+from src.config import GROQ_MODEL
 
 load_dotenv()
-
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 def extract_questions(filepath: str) -> list[dict]:
     ext = os.path.splitext(filepath)[1].lower()

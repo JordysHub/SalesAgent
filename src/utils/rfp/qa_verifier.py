@@ -15,10 +15,9 @@ the proposal output with a visible warning rather than being silently dropped.
 
 Rate limit errors from the LLM are handled with an automatic 60s wait.
 """
+from src.config import QA_MAX_RETRIES, QA_RETRY_TOP_K
 
 import time
-
-MAX_RETRIES = 2
 
 def verify(results: list[dict], answer_fn, top_k: int = 5) -> list[dict]:
     verified = []
@@ -27,7 +26,7 @@ def verify(results: list[dict], answer_fn, top_k: int = 5) -> list[dict]:
         attempt = 0
         current = item
 
-        while attempt <= MAX_RETRIES:
+        while attempt <= QA_MAX_RETRIES:
             issues = []
 
             if current["chunks_used"] == 0:
@@ -50,7 +49,7 @@ def verify(results: list[dict], answer_fn, top_k: int = 5) -> list[dict]:
             if attempt < MAX_RETRIES:
                 print(f"[qa] Q{current['id']} failed ({', '.join(issues)}) — retrying ({attempt + 1}/{MAX_RETRIES})")
                 try:
-                    retry = answer_fn(current["question"], top_k=top_k + 3)
+                    retry = answer_fn(current["question"], top_k=top_k + QA_RETRY_TOP_K)
                     current = {
                         **current,
                         **retry,

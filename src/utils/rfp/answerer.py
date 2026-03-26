@@ -19,12 +19,11 @@ import os
 from groq import Groq
 from dotenv import load_dotenv
 from src.utils.retrieval.retriever import query_rag
+from src.config import GROQ_MODEL, TEMPERATURE, LOW_CONFIDENCE
 
 load_dotenv()
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-
 
 def synthesise(question: str, chunks: list[dict]) -> str:
     context = "\n\n".join([
@@ -33,8 +32,8 @@ def synthesise(question: str, chunks: list[dict]) -> str:
     ])
 
     response = client.chat.completions.create(
-        model=MODEL,
-        temperature=0,
+        model=GROQ_MODEL,
+        temperature=TEMPERATURE,
         messages=[
             {
                 "role": "system",
@@ -60,7 +59,7 @@ def answer_question(question: str, top_k: int = 5, include_chunks: bool = False)
     chunks = query_rag(question, top_k=top_k)
 
     avg_score = sum(c["score"] for c in chunks) / len(chunks) if chunks else 0
-    low_confidence = avg_score < 0.3  # warn but don't block
+    low_confidence = avg_score < LOW_CONFIDENCE  # warn but don't block
 
     answer = synthesise(question, chunks)
 
