@@ -1,4 +1,20 @@
 # src/utils/rfp/answerer.py
+
+"""
+Answerer — Core RAG Answer Function
+
+Handles retrieval and synthesis for a single question. Queries Qdrant via
+query_rag() to retrieve the most relevant chunks, then passes them to the
+LLM for grounded answer generation.
+
+Key design decision: the LLM is strictly prohibited from using its own
+knowledge. Every claim must be supported by a retrieved chunk and cited
+with a source filename. If context is insufficient, the answer begins with
+INSUFFICIENT CONTEXT rather than fabricating a response.
+
+Used directly by the answer agent and by the QA verifier during retries.
+"""
+
 import os
 from groq import Groq
 from dotenv import load_dotenv

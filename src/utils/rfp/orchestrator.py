@@ -1,4 +1,16 @@
 # src/utils/rfp/orchestrator.py
+
+"""
+RFP Orchestrator — Pipeline Step 1
+
+Parses an RFP document and extracts all questions a respondent must answer.
+Uses an LLM (Groq) to interpret document structure rather than regex, making
+it robust to varying RFP formats and numbering conventions.
+
+Returns a structured list of questions with id, category, and question text.
+This output is passed directly to the answer agent.
+"""
+
 import os
 import json
 import requests

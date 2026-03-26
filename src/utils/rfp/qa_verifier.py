@@ -1,4 +1,21 @@
 # src/utils/rfp/qa_verifier.py
+
+"""
+QA Verifier — Pipeline Step 3
+
+Verifies that each generated answer is grounded in retrieved source material.
+An answer fails verification if:
+  - No chunks were retrieved (content gap — retries are skipped)
+  - The answer begins with INSUFFICIENT CONTEXT
+  - The average retrieval score is below the confidence threshold
+
+Failed answers are retried up to MAX_RETRIES times with an expanded top_k.
+If all retries fail, the answer is flagged with its issues and included in
+the proposal output with a visible warning rather than being silently dropped.
+
+Rate limit errors from the LLM are handled with an automatic 60s wait.
+"""
+
 import time
 
 MAX_RETRIES = 2

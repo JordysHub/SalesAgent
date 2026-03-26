@@ -1,4 +1,17 @@
 # src/utils/rfp/composer.py
+
+"""
+Proposal Composer — Pipeline Step 4
+
+Assembles verified answers into a formatted DOCX proposal document.
+Groups answers by category, renders each question-answer pair with source
+citations, and marks flagged answers with a visible warning.
+
+Currently uses a plain DOCX structure. Intended to be replaced with the
+company DOCX template once available — only this file needs to change.
+"""
+
+
 import os
 from docx import Document
 from docx.shared import Pt, RGBColor
