@@ -2,7 +2,7 @@
 import argparse
 import requests
 
-API_URL = "http://localhost:8000"
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 parser = argparse.ArgumentParser(description="Query the RAG system")
 parser.add_argument("question", type=str, help="Question to ask")
