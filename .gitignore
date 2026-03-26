@@ -70,3 +70,5 @@ data/rfp_questions.json
 proposal_output.docx
 rfp_*.json
 proposal_*.docx
+data/rfp-outputs/*.docx
+data/rfp-questions/*.json

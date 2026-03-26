@@ -13,7 +13,7 @@ ask:
 
 # ─── RFP Pipeline ──────────────────────────────────────────────────────────
 rfp:
-	python scripts/run_pipeline.py --file $(F) --output proposal_output.docx --save-questions rfp_questions.json --max-questions 5 --top-k 8
+	python scripts/run_pipeline.py --file $(F) --output data/rfp-outputs/proposal_output.docx --save-questions data/rfp-questions/rfp_questions.json --max-questions 5 --top-k 8
 
 pipeline:
 	curl -X POST https://rag-api.orangepond-15ea034f.northeurope.azurecontainerapps.io/pipeline \

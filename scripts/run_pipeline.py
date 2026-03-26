@@ -16,10 +16,10 @@ from src.utils.rfp.answerer import answer_question
 
 parser = argparse.ArgumentParser(description="Run full RFP response pipeline")
 parser.add_argument("--file", type=str, required=True, help="Path to RFP DOCX or PDF")
-parser.add_argument("--output", type=str, default="proposal_output.docx", help="Output proposal path")
 parser.add_argument("--top-k", type=int, default=5, help="Chunks to retrieve per question")
-parser.add_argument("--save-questions", type=str, default=None, help="Save extracted questions to JSON")
 parser.add_argument("--max-questions", type=int, default=5, help="Limit number of questions to process")
+parser.add_argument("--output", type=str, default="data/rfp-outputs/proposal_output.docx")
+parser.add_argument("--save-questions", type=str, default="data/rfp-questions/rfp_questions.json")
 args = parser.parse_args()
 
 print("\n=== RFP Response Pipeline ===\n")
