@@ -55,7 +55,7 @@ Rules:
     return response.choices[0].message.content
 
 
-def answer_question(question: str, top_k: int = 5, include_chunks: bool = False) -> dict:
+def answer_question(question: str, top_k: int = TOP_K, include_chunks: bool = False) -> dict:
     chunks = query_rag(question, top_k=top_k)
 
     avg_score = sum(c["score"] for c in chunks) / len(chunks) if chunks else 0

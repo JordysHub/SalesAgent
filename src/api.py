@@ -13,7 +13,7 @@ from src.utils.rfp.qa_verifier import verify
 from src.utils.rfp.composer import compose_proposal
 from src.utils.connector.blob_connector import get_blob_service
 
-from src.config import STORAGE_ACCOUNT, CONTAINER_NAME, SAS_EXPIRY_DAYS
+from src.config import STORAGE_ACCOUNT, CONTAINER_NAME, SAS_EXPIRY_DAYS, TOP_K
 
 from azure.storage.blob import generate_blob_sas, BlobSasPermissions
 from pydantic import BaseModel, Field, validator
@@ -87,7 +87,7 @@ class QueryRequest(BaseModel):
         return v
 class AnswerRequest(BaseModel):
     question: str = Field(..., description="The question to ask")
-    top_k: int = Field(5, description="Number of chunks to retrieve")
+    top_k: int = Field(TOP_K, description="Number of chunks to retrieve")
     include_chunks: bool = Field(False, description="Include raw chunks in response")
 
     @validator("question")

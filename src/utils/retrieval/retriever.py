@@ -4,7 +4,7 @@ from src.utils.ingestion.embedder import embed_texts
 from src.utils.store.vector_store import get_client, COLLECTION_NAME
 from src.config import TOP_K, MIN_SCORE
 
-def query_rag(question: str, top_k: int = 5) -> list[dict]:
+def query_rag(question: str, top_k: int = TOP_K) -> list[dict]:
     client = get_client()
     query_embedding = embed_texts([question])[0]
 
