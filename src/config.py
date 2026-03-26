@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ─── Embedding & Retrieval ────────────────────────────────────────────────────
-EMBED_MODEL         = os.getenv("EMBED_MODEL", "all-MiniLM-L6-v2")
+EMBED_MODEL = os.getenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 CHUNK_SIZE          = int(os.getenv("CHUNK_SIZE", 256))
 CHUNK_OVERLAP       = int(os.getenv("CHUNK_OVERLAP", 40))
 TOP_K               = int(os.getenv("TOP_K", 8))

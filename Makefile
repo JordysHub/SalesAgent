@@ -50,6 +50,7 @@ ingest-file:
 	python scripts/ingest_source.py --file $(F)
 
 upload:
+# Uploads new files from data/documents/ to blob storage.
 	az storage blob upload-batch \
 		--account-name ragdocuments1337 \
 		--destination documents \
@@ -70,6 +71,7 @@ upload-rfp:
 		--account-key $$(grep AZURE_STORAGE_KEY .env | cut -d= -f2-)
 
 publish:
+#Upload + ingest in one command.
 	az storage blob upload-batch \
 		--account-name ragdocuments1337 \
 		--destination documents \
@@ -93,6 +95,7 @@ deploy:
 	gh workflow run deploy.yml && gh run watch
 
 sync:
+#Triggers the ingest GitHub Actions workflow without uploading anything. 
 	gh workflow run ingest.yml && gh run watch
 
 release:
