@@ -101,3 +101,6 @@ logs:
 
 logs-history:
 	az containerapp logs show --name rag-api --resource-group rag-rg --tail 200 | grep "endpoint="
+
+test:
+	pytest tests/test_api.py -v

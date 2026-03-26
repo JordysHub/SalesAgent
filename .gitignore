@@ -68,3 +68,5 @@ htmlcov/
 # all data and documents
 data/rfp_questions.json
 proposal_output.docx
+rfp_*.json
+proposal_*.docx
