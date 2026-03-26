@@ -1,7 +1,10 @@
 # scripts/ask.py
+import os
 import argparse
 import requests
-import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
@@ -40,6 +43,12 @@ if args.endpoint == "answer":
     print(f"Sources    : {', '.join(data['sources'])}")
     print(f"Chunks used: {data['chunks_used']}")
     print(f"Avg score  : {data.get('avg_score', 'n/a')}")
+    print(f"Low conf   : {data.get('low_confidence', False)}")
+    print(f"--- Config ---")
+    print(f"TOP_K      : {os.getenv('TOP_K', 'default')}")
+    print(f"MIN_SCORE  : {os.getenv('MIN_SCORE', 'default')}")
+    print(f"LOW_CONF   : {os.getenv('LOW_CONFIDENCE', 'default')}")
+    print(f"TEMPERATURE: {os.getenv('TEMPERATURE', 'default')}")
 
     if data.get("low_confidence"):
         print("⚠️  Low confidence — results may not be strongly relevant")
