@@ -55,7 +55,11 @@ upload:
 		--destination documents \
 		--source data/documents \
 		--account-key $$(grep AZURE_STORAGE_KEY .env | cut -d= -f2-) \
-		--overwrite false
+		--overwrite false \
+		--pattern "*.docx" \
+		--pattern "*.pdf" \
+		--pattern "*.txt" \
+		--pattern "*.md"
 
 upload-rfp:
 	az storage blob upload \
