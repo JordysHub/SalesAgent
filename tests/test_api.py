@@ -11,7 +11,6 @@ BASE_URL = os.getenv(
     "https://rag-api.orangepond-15ea034f.northeurope.azurecontainerapps.io"
 )
 
-
 # ─── Health ──────────────────────────────────────────────────────────────────
 
 def test_health():
