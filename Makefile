@@ -11,6 +11,9 @@ serve:
 ask:
 	python scripts/ask.py "$(Q)" --show-chunks --top-k 10
 
+ask-local:
+	API_URL=http://localhost:8000 python scripts/ask.py "$(Q)" --show-chunks
+
 # ─── RFP Pipeline ──────────────────────────────────────────────────────────
 rfp:
 	python scripts/run_pipeline.py --file $(F) --output data/rfp-outputs/proposal_output.docx --save-questions data/rfp-questions/rfp_questions.json --max-questions 5 --top-k 8
@@ -95,7 +98,7 @@ deploy:
 	gh workflow run deploy.yml && gh run watch
 
 sync:
-#Triggers the ingest GitHub Actions workflow without uploading anything. 
+#Triggers the ingest GitHub Actions workflow without uploading anything.
 	gh workflow run ingest.yml && gh run watch
 
 release:

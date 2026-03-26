@@ -19,7 +19,7 @@ import os
 from groq import Groq
 from dotenv import load_dotenv
 from src.utils.retrieval.retriever import query_rag
-from src.config import GROQ_MODEL, TEMPERATURE, LOW_CONFIDENCE
+from src.config import GROQ_MODEL, TEMPERATURE, LOW_CONFIDENCE, TOP_K
 
 load_dotenv()
 

@@ -78,17 +78,20 @@ async def log_requests(request: Request, call_next):
 
 class QueryRequest(BaseModel):
     question: str = Field(..., description="The question to search for")
-    top_k: int = Field(5, description="Number of results to return")
+    top_k: int = Field(TOP_K, description="Number of results to return")
 
     @validator("question")
     def question_must_not_be_empty(cls, v):
         if not v.strip():
             raise ValueError("question must not be empty")
         return v
+
+
 class AnswerRequest(BaseModel):
     question: str = Field(..., description="The question to ask")
     top_k: int = Field(TOP_K, description="Number of chunks to retrieve")
-    include_chunks: bool = Field(False, description="Include raw chunks in response")
+    include_chunks: bool = Field(
+        False, description="Include raw chunks in response")
 
     @validator("question")
     def question_must_not_be_empty(cls, v):
@@ -96,14 +99,19 @@ class AnswerRequest(BaseModel):
             raise ValueError("question must not be empty")
         return v
 
+
 class PipelineRequest(BaseModel):
-    filename: str = Field(..., description="RFP filename in blob rfp-inputs/ folder")
-    top_k: int = Field(8, description="Chunks to retrieve per question")
-    max_questions: int = Field(0, description="Maximum questions to process. 0 = all questions.")
+    filename: str = Field(...,
+                          description="RFP filename in blob rfp-inputs/ folder")
+    top_k: int = Field(TOP_K, description="Chunks to retrieve per question")
+    max_questions: int = Field(
+        0, description="Maximum questions to process. 0 = all questions.")
+
 
 class QueryResponse(BaseModel):
     question: str
     results: list[dict]
+
 
 class AnswerResponse(BaseModel):
     answer: str
@@ -112,6 +120,7 @@ class AnswerResponse(BaseModel):
     chunks: list[dict] = []
     low_confidence: bool = False
     avg_score: float = 0.0
+
 
 class PipelineResponse(BaseModel):
     status: str
@@ -131,15 +140,18 @@ class PipelineResponse(BaseModel):
 def health():
     return {"status": "ok"}
 
+
 @app.get("/stats")
 def stats():
     count = collection_count()
     return {"total_chunks": count}
 
+
 @app.post("/query", response_model=QueryResponse)
 def query(request: QueryRequest):
     results = query_rag(request.question, top_k=request.top_k)
     return {"question": request.question, "results": results}
+
 
 @app.post("/answer", response_model=AnswerResponse)
 def answer(request: AnswerRequest):
@@ -149,6 +161,7 @@ def answer(request: AnswerRequest):
         include_chunks=request.include_chunks
     )
     return result
+
 
 @app.post("/pipeline", response_model=PipelineResponse)
 def pipeline(request: PipelineRequest):
@@ -172,7 +185,8 @@ def pipeline(request: PipelineRequest):
     ext = os.path.splitext(request.filename)[1].lower()
 
     service = get_blob_service()
-    blob_client = service.get_blob_client(container=CONTAINER_NAME, blob=blob_path)
+    blob_client = service.get_blob_client(
+        container=CONTAINER_NAME, blob=blob_path)
 
     if not blob_client.exists():
         raise ValueError(f"RFP not found in blob: {blob_path}")
@@ -188,7 +202,8 @@ def pipeline(request: PipelineRequest):
     os.unlink(tmp_path)
 
     questions = all_questions[:request.max_questions] if request.max_questions > 0 else all_questions
-    logger.info(f"[pipeline] Extracted {len(all_questions)} questions, processing {len(questions)}")
+    logger.info(
+        f"[pipeline] Extracted {len(all_questions)} questions, processing {len(questions)}")
 
     # step 2: answer
     results = answer_all(questions, top_k=request.top_k)
@@ -203,7 +218,8 @@ def pipeline(request: PipelineRequest):
 
     # upload to blob
     output_blob_path = f"rfp-outputs/{output_filename}"
-    output_blob_client = service.get_blob_client(container=CONTAINER_NAME, blob=output_blob_path)
+    output_blob_client = service.get_blob_client(
+        container=CONTAINER_NAME, blob=output_blob_path)
     with open(output_path, "rb") as f:
         output_blob_client.upload_blob(f, overwrite=True)
     os.unlink(output_path)
@@ -223,7 +239,8 @@ def pipeline(request: PipelineRequest):
     questions_verified = sum(1 for r in verified if r.get("verified", False))
     questions_flagged = sum(1 for r in verified if not r.get("verified", True))
 
-    logger.info(f"[pipeline] Done. {questions_verified}/{len(verified)} verified. Output: {output_blob_path}")
+    logger.info(
+        f"[pipeline] Done. {questions_verified}/{len(verified)} verified. Output: {output_blob_path}")
 
     return PipelineResponse(
         status="completed",
@@ -352,5 +369,6 @@ def custom_openapi():
             }
         }
     }
+
 
 app.openapi = custom_openapi

@@ -46,8 +46,8 @@ def verify(results: list[dict], answer_fn, top_k: int = 5) -> list[dict]:
                 current["issues"] = []
                 break
 
-            if attempt < MAX_RETRIES:
-                print(f"[qa] Q{current['id']} failed ({', '.join(issues)}) — retrying ({attempt + 1}/{MAX_RETRIES})")
+            if attempt < QA_MAX_RETRIES:
+                print(f"[qa] Q{current['id']} failed ({', '.join(issues)}) — retrying ({attempt + 1}/{QA_MAX_RETRIES})")
                 try:
                     retry = answer_fn(current["question"], top_k=top_k + QA_RETRY_TOP_K)
                     current = {
@@ -65,7 +65,7 @@ def verify(results: list[dict], answer_fn, top_k: int = 5) -> list[dict]:
                     raise
                 attempt += 1
             else:
-                print(f"[qa] Q{current['id']} failed after {MAX_RETRIES} retries — flagging")
+                print(f"[qa] Q{current['id']} failed after {QA_MAX_RETRIES} retries — flagging")
                 current["verified"] = False
                 current["issues"] = issues
                 break
