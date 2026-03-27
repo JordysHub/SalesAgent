@@ -45,6 +45,15 @@ documents/
   └── registry.json          ← ingestion registry (auto-managed)
 ```
 
+**Local folder structure:**
+```
+data/
+  ├── documents/             ← knowledge base source files
+  ├── rfp/                   ← RFP input files
+  ├── rfp-outputs/           ← generated proposals (local, gitignored)
+  └── rfp-questions/         ← extracted question JSON files (local, gitignored)
+```
+
 ---
 
 ## Makefile Commands
@@ -58,7 +67,8 @@ documents/
 | Command | Description |
 |---|---|
 | `make serve` | Start API server locally with auto-reload on port 8000 |
-| `make ask Q="question"` | Query the local API, show chunks, top-k 10 |
+| `make ask Q="question"` | Query the Azure API, show chunks |
+| `make ask-local Q="question"` | Query the local server, show chunks |
 
 ### RFP Pipeline
 | Command | Description |
@@ -98,11 +108,76 @@ documents/
 | `make sync` | Trigger ingest workflow + watch |
 | `make release` | Trigger ingest + deploy sequentially |
 
+### Tests
+| Command | Description |
+|---|---|
+| `make test` | Run all tests except slow pipeline tests |
+| `make test-full` | Run all tests including pipeline tests (costs tokens) |
+
 ### Logs
 | Command | Description |
 |---|---|
 | `make logs` | Stream live Azure container logs (last 50 lines) |
 | `make logs-history` | Show last 200 log lines, filtered to endpoint calls only |
+
+---
+
+## Parameter Tuning
+
+All tunable parameters are centralised in `src/config.py` and read from environment variables.
+
+### Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `TOP_K` | 8 | Chunks retrieved per question. Higher = more context, more noise |
+| `MIN_SCORE` | 0.25 | Minimum similarity score to include a chunk. Higher = stricter |
+| `LOW_CONFIDENCE` | 0.3 | Avg score below this flags answer as low confidence |
+| `TEMPERATURE` | 0.0 | LLM temperature. 0 = deterministic, 0.5 = more varied |
+| `QA_MAX_RETRIES` | 2 | Max retries for failed QA verification |
+| `QA_RETRY_TOP_K` | 3 | Extra chunks added to top_k on each retry |
+| `CHUNK_SIZE` | 256 | Tokens per chunk at ingestion time |
+| `CHUNK_OVERLAP` | 40 | Token overlap between chunks |
+| `EMBED_MODEL` | sentence-transformers/all-MiniLM-L6-v2 | Embedding model |
+| `GROQ_MODEL` | llama-3.3-70b-versatile | LLM model |
+
+### How to tune locally
+
+1. Change value in `.env`
+2. Restart local server: `lsof -ti:8000 | xargs kill -9 && make serve`
+3. Test: `make ask-local Q="your question"`
+4. Output shows current config values below the answer
+
+### How to tune on Azure (no redeploy needed)
+
+```bash
+az containerapp update \
+  --name rag-api \
+  --resource-group rag-rg \
+  --set-env-vars TOP_K=10 TEMPERATURE=0.2
+```
+
+Takes effect in ~30 seconds.
+
+### How to deploy param changes permanently
+
+Update the value in `.github/workflows/deploy.yml` under `--set-env-vars`, then:
+```bash
+make push M="tune TOP_K to 10"
+gh workflow run deploy.yml
+```
+
+---
+
+## Local vs Azure Testing
+
+| Scenario | Command | Notes |
+|---|---|---|
+| Test code changes locally | `make serve` + `make ask-local` | Reads `.env`, free, instant |
+| Test against live Azure | `make ask` | Hits deployed container |
+| Run full pipeline locally | `make rfp F="..."` | Reads `.env`, costs Groq tokens |
+| Run full pipeline on Azure | `make pipeline F="..." Q=3` | Hits deployed container |
+| Run tests | `make test` | Tests against Azure by default |
 
 ---
 
@@ -172,6 +247,12 @@ az containerapp update \
   --name rag-api \
   --resource-group rag-rg \
   --set-env-vars KEY=secretref:key-name
+
+# Tune params without redeploying
+az containerapp update \
+  --name rag-api \
+  --resource-group rag-rg \
+  --set-env-vars TOP_K=10 TEMPERATURE=0.2 MIN_SCORE=0.3
 ```
 
 ### Azure — Blob Storage
@@ -230,36 +311,57 @@ curl -X GET "$(grep QDRANT_URL .env | cut -d= -f2)/collections/rag_docs" \
   -H "api-key: $(grep QDRANT_API_KEY .env | cut -d= -f2)"
 ```
 
+### Local server
+```bash
+# Kill process on port 8000 and restart
+lsof -ti:8000 | xargs kill -9 && make serve
+```
+
 ---
 
 ## Scripts Reference
 
 | Script | Usage | Description |
 |---|---|---|
-| `scripts/ask.py` | `python scripts/ask.py "question" --top-k 10 --show-chunks --endpoint answer` | Query the API locally |
+| `scripts/ask.py` | `python scripts/ask.py "question" --show-chunks` | Query the API |
 | `scripts/inspect_chunks.py` | `python scripts/inspect_chunks.py [--file name] [--duplicates]` | Inspect Qdrant index |
 | `scripts/delete_source.py` | `python scripts/delete_source.py filename.docx` or `--all` | Delete chunks + registry entry |
 | `scripts/ingest_source.py` | `python scripts/ingest_source.py --file filename.docx` | Delete + re-ingest single file from blob |
 | `scripts/show_registry.py` | `python scripts/show_registry.py` | Show ingestion registry contents |
 | `scripts/debug_parse.py` | `python scripts/debug_parse.py --file filename.docx` | Debug document parsing |
-| `scripts/run_pipeline.py` | `python scripts/run_pipeline.py --file path/to/rfp.docx --max-questions 5 --top-k 8` | Run full pipeline locally |
+| `scripts/run_pipeline.py` | `python scripts/run_pipeline.py --file path/to/rfp.docx --max-questions 5` | Run full pipeline locally |
 
 ---
 
 ## Environment Variables (.env)
 
 ```
+# Secrets
 QDRANT_URL=
 QDRANT_API_KEY=
 GROQ_API_KEY=
+AZURE_STORAGE_KEY=
+
+# Non-sensitive config
 GROQ_MODEL=llama-3.3-70b-versatile
-EMBED_MODEL=all-MiniLM-L6-v2
+EMBED_MODEL=sentence-transformers/all-MiniLM-L6-v2
 CHUNK_SIZE=256
 CHUNK_OVERLAP=40
 DOCS_PATH=./data/documents
 AZURE_STORAGE_ACCOUNT=ragdocuments1337
-AZURE_STORAGE_KEY=
 AZURE_CONTAINER_NAME=documents
+SAS_EXPIRY_DAYS=7
+
+# Tunable params
+TOP_K=8
+MIN_SCORE=0.25
+LOW_CONFIDENCE=0.3
+TEMPERATURE=0.0
+QA_MAX_RETRIES=2
+QA_RETRY_TOP_K=3
+
+# Local testing
+API_URL=https://rag-api.orangepond-15ea034f.northeurope.azurecontainerapps.io
 ```
 
 ---
@@ -301,7 +403,7 @@ AZURE_CONTAINER_NAME=documents
 ```json
 {
   "name": "generate_proposal",
-  "description": "Generate a full proposal document in response to an RFP. Call this when the user asks to generate or create a proposal and provides an RFP filename. Always include the full output_url from the response as a clickable download link for the user.",
+  "description": "Generate a full proposal document in response to an RFP. Call this when the user asks to generate or create a proposal and provides an RFP filename. When the function returns, always present: (1) questions extracted, answered, verified, flagged counts, (2) the full output_url as plain text starting with https://, (3) the output_url_expires date.",
   "api": {
     "url": "https://rag-api.orangepond-15ea034f.northeurope.azurecontainerapps.io/pipeline",
     "method": "POST",
@@ -328,7 +430,11 @@ AZURE_CONTAINER_NAME=documents
       }
     },
     "required": ["filename"]
-  }
+  },
+  "earlyExit": false,
+  "streamingEnabled": false,
+  "isContextPrimer": false,
+  "dsAuthEnabled": false
 }
 ```
 
@@ -351,8 +457,15 @@ make duplicates
 
 ### Retrieval quality
 ```bash
-python scripts/ask.py "what services does Accenture offer?" --show-chunks --top-k 10
-python scripts/ask.py "describe the cloud migration project" --show-chunks --top-k 10
+make ask-local Q="what services does Accenture offer?"
+make ask-local Q="describe the GlobalBank migration project"
+make ask-local Q="what is Accenture's approach to GDPR compliance?"
+```
+
+### Run tests
+```bash
+make test
+make test-full  # includes pipeline tests — costs tokens
 ```
 
 ### Pipeline (local)
@@ -378,18 +491,66 @@ make download-proposal F="RFP_TechCorp_AI_Platform_2026.docx"
 
 ## Backlog
 
-- Automated document lifecycle: blob deletions propagate to Qdrant + registry automatically
-- Event Grid trigger on blob upload to auto-fire ingest workflow
-- Log Analytics workspace for persistent queryable logs (30-day retention)
-- Reranking layer for improved retrieval precision
-- Vision LLM for image and scanned document ingestion at ingest time
-- Switch to OpenAI embeddings (text-embedding-3-large) + Azure AI Search for production
-- Company DOCX template for proposal composer output
-- Proposal versioning — timestamp in filename to preserve history
-- Azure Storage Explorer setup guide for team members to upload RFPs
-- User Delegation SAS for production (replaces account key SAS)
-- `make delete-all` --force flag for CI use without confirmation prompt
-- `make registry` diff against `make inspect` to flag inconsistencies
-- `delete_source.py` warn if file still exists in blob after chunk deletion
-- Node.js 24 upgrade for GitHub Actions (required before June 2026)
-- Async `/pipeline` endpoint with job ID + polling for long-running proposals
+### Immediate
+- [ ] Fix agent not returning raw SAS URL — Amethyst Studio strips external URLs
+- [ ] Add timestamp to proposal output filename to preserve version history
+- [ ] Add length instruction to system prompt in answerer.py for more comprehensive answers
+- [ ] Remove all `sys.path.insert` lines now that `pip install -e .` is in place
+
+### Pipeline Improvements
+- [ ] Save intermediate results (answers JSON) to disk so composer can rerun without re-answering
+- [ ] Async `/pipeline` endpoint — return job ID immediately, poll `/pipeline/status/{job_id}`
+- [ ] Company DOCX template for proposal composer output — waiting for laptop access
+
+### Retrieval Quality (after real data)
+- [ ] Reranking layer — cross-encoder reranker after top-k retrieval
+- [ ] Query decomposition — 3–5 sub-queries per question, merge results
+- [ ] Switch to OpenAI embeddings (text-embedding-3-large, 1536 dimensions)
+- [ ] Switch vector store to Azure AI Search for production
+- [ ] Tune TOP_K, CHUNK_SIZE, MIN_SCORE against real document corpus
+
+### Knowledge Base Management
+- [ ] Automated document lifecycle — blob deletions propagate to Qdrant + registry
+- [ ] Event Grid trigger on blob upload to auto-fire ingest workflow
+- [ ] `make registry` diff against `make inspect` to flag inconsistencies
+- [ ] `delete_source.py` warn if deleted file still exists in blob
+
+### Infrastructure & DevOps
+- [ ] Log Analytics workspace for persistent queryable logs
+- [ ] Node.js 24 upgrade for GitHub Actions (required before June 2026)
+- [ ] User Delegation SAS for production (replaces account key SAS)
+- [ ] Add smoke test to ingest workflow — assert chunk count > 0
+
+### Access & Onboarding
+- [ ] Azure Storage Explorer setup guide for team members
+- [ ] Document blob folder structure and naming conventions
+
+### Tests to Add
+- [ ] Unit test for qa_verifier logic
+- [ ] Unit test for chunker
+- [ ] Unit test for parser
+- [ ] Unit test for embedder — assert vector length 384
+- [ ] Unit test for orchestrator — assert question structure
+- [ ] Version endpoint `/version` returning git commit SHA
+
+### Azure Enterprise Migration
+- [ ] Azure subscription onboarding to company tenant
+- [ ] Migrate ACR, Container App, Blob Storage to company subscription
+- [ ] Switch Qdrant cloud to Azure AI Search
+- [ ] Replace Groq with Azure OpenAI for company policy compliance
+- [ ] Add authentication to API endpoints (Azure AD / Entra ID)
+- [ ] Managed Identity for blob access (replaces storage account key)
+- [ ] SharePoint ingestion via Microsoft Graph API
+- [ ] Re-register Amethyst Studio actions with new URLs
+
+### Proposal Output Design (before company template)
+
+- [ ] Decide on proposal structure — cover page, table of contents, section per RFP category, or flat Q&A
+- [ ] Decide on answer format — full paragraphs vs bullet points vs mixed
+- [ ] Decide on source citation style — inline [source.docx], footnotes, or reference list at end of section
+- [ ] Decide whether flagged/unverified answers are included with warning, excluded entirely, or shown as "to be completed"
+- [ ] Decide on confidence indicators — show avg score per answer, show low confidence warning, or hide entirely from final output
+- [ ] Decide on metadata in output — date generated, RFP filename, questions answered/flagged counts, or clean document only
+- [ ] Define section order — follow RFP category order or reorder by Accenture's preferred proposal structure
+- [ ] Once decisions are made, update src/utils/rfp/composer.py accordingly
+- [ ] When company DOCX template is available, wire it in as the base document
