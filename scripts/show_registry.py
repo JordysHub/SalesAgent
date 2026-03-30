@@ -1,6 +1,5 @@
 import os
 import sys
-sys.path.insert(0, os.path.abspath("."))
 from dotenv import load_dotenv
 from src.utils.connector.blob_connector import load_registry
 

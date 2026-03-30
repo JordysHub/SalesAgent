@@ -212,7 +212,9 @@ def pipeline(request: PipelineRequest):
     verified = verify(results, answer_question, top_k=request.top_k)
 
     # step 4: compose
-    output_filename = f"proposal_{request.filename}"
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    stem, ext = os.path.splitext(request.filename)
+    output_filename = f"proposal_{stem}_{timestamp}{ext}"
     output_path = f"/tmp/{output_filename}"
     compose_proposal(verified, request.filename, output_path)
 

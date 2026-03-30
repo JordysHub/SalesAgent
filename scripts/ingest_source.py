@@ -10,7 +10,6 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import Filter, FieldCondition, MatchValue, PayloadSchemaType
 
 load_dotenv()
-sys.path.insert(0, os.path.abspath("."))
 
 from src.utils.ingestion.parser import parse_document
 from src.utils.ingestion.chunker import chunk_text
