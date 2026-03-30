@@ -1,23 +1,26 @@
 # scripts/ingest_source.py
-import os
-import sys
 import argparse
 import hashlib
+import os
+import sys
 import tempfile
 from datetime import datetime, timezone
+
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
-from qdrant_client.models import Filter, FieldCondition, MatchValue, PayloadSchemaType
+from qdrant_client.models import FieldCondition, Filter, MatchValue, PayloadSchemaType
 
 load_dotenv()
 
-from src.utils.ingestion.parser import parse_document
+from src.utils.connector.blob_connector import (
+    get_blob_service,
+    load_registry,
+    save_registry,
+)
 from src.utils.ingestion.chunker import chunk_text
 from src.utils.ingestion.embedder import embed_texts
+from src.utils.ingestion.parser import parse_document
 from src.utils.store.vector_store import add_chunks
-from src.utils.connector.blob_connector import (
-    get_blob_service, load_registry, save_registry
-)
 
 EMBED_MODEL = os.getenv("EMBED_MODEL", "all-MiniLM-L6-v2")
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 256))
@@ -26,7 +29,9 @@ STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT", "ragdocuments1337")
 CONTAINER_NAME = os.getenv("AZURE_CONTAINER_NAME", "documents")
 
 parser = argparse.ArgumentParser(description="Ingest a single file from Azure Blob")
-parser.add_argument("--file", type=str, required=True, help="Filename in blob (e.g. proposal_cloud_migration.docx)")
+parser.add_argument(
+    "--file", type=str, required=True, help="Filename in blob (e.g. proposal_cloud_migration.docx)"
+)
 args = parser.parse_args()
 
 filename = args.file
@@ -56,15 +61,11 @@ with open(tmp_path, "wb") as f:
 print(f"[ingest_source] Deleting existing chunks for: {filename}")
 client = QdrantClient(url=os.getenv("QDRANT_URL"), api_key=os.getenv("QDRANT_API_KEY"))
 client.create_payload_index(
-    collection_name="rag_docs",
-    field_name="filename",
-    field_schema=PayloadSchemaType.KEYWORD
+    collection_name="rag_docs", field_name="filename", field_schema=PayloadSchemaType.KEYWORD
 )
 client.delete(
     collection_name="rag_docs",
-    points_selector=Filter(
-        must=[FieldCondition(key="filename", match=MatchValue(value=filename))]
-    )
+    points_selector=Filter(must=[FieldCondition(key="filename", match=MatchValue(value=filename))]),
 )
 
 # parse
@@ -84,9 +85,11 @@ print(f"[ingest_source] {chunk_count} chunks created")
 embeddings = embed_texts(chunks, model_name=EMBED_MODEL)
 ingested_at = datetime.now(timezone.utc).isoformat()
 
+
 def make_chunk_id(filename: str, chunk_index: int) -> str:
     raw = f"{filename}::chunk::{chunk_index}"
     return hashlib.md5(raw.encode()).hexdigest()
+
 
 ids = [make_chunk_id(filename, i) for i in range(chunk_count)]
 metadata = [

@@ -11,15 +11,16 @@ Returns a structured list of questions with id, category, and question text.
 This output is passed directly to the answer agent.
 """
 
-import os
 import json
-import requests
+import os
+
 from dotenv import load_dotenv
+
 from src.utils.ingestion.parser import parse_document
-from src.config import GROQ_MODEL
+from src.utils.llm_client import chat
 
 load_dotenv()
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
 
 def extract_questions(filepath: str) -> list[dict]:
     ext = os.path.splitext(filepath)[1].lower()
@@ -31,34 +32,22 @@ def extract_questions(filepath: str) -> list[dict]:
 
     prompt = f"""You are a procurement analyst. Extract all questions that a respondent must answer from the RFP document below.
 
-Return ONLY a valid JSON object in this exact format, with no preamble or explanation:
-{{
-  "questions": [
-    {{
-      "id": 1,
-      "category": "Category name",
-      "question": "Full question text"
-    }}
-  ]
-}}
+            Return ONLY a valid JSON object in this exact format, with no preamble or explanation:
+            {{
+            "questions": [
+                {{
+                "id": 1,
+                "category": "Category name",
+                "question": "Full question text"
+                }}
+            ]
+            }}
 
-RFP DOCUMENT:
-{text}"""
+            RFP DOCUMENT:
+            {text}"""
 
-    response = requests.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {GROQ_API_KEY}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "model": GROQ_MODEL,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0
-        }
-    )
-    response.raise_for_status()
-    raw = response.json()["choices"][0]["message"]["content"].strip()
+    messages = [{"role": "user", "content": prompt}]
+    raw = chat(messages, temperature=0).strip()
 
     if raw.startswith("```"):
         raw = raw.split("```")[1]

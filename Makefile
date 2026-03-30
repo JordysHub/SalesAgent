@@ -120,3 +120,9 @@ test-full:
 
 test-local:
 	API_URL=http://localhost:8000 pytest tests/test_api.py -v
+
+# ─── Markup ──────────────────────────────────────────────────────────────────
+lint:
+	black src/ scripts/
+	isort src/ scripts/
+	flake8 --max-line-length=100 --extend-ignore=E203,W503 src/ scripts/

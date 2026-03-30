@@ -1,32 +1,26 @@
 # src/api.py
-from fastapi import FastAPI, Request
-from pydantic import BaseModel, Field
-from dotenv import load_dotenv
+import logging
+import os
+import tempfile
+import time
 from datetime import datetime, timedelta, timezone
 
-from src.utils.retrieval.retriever import query_rag
-from src.utils.store.vector_store import collection_count
-from src.utils.rfp.answerer import answer_question
-from src.utils.rfp.orchestrator import extract_questions
-from src.utils.rfp.answer_agent import answer_all
-from src.utils.rfp.qa_verifier import verify
-from src.utils.rfp.composer import compose_proposal
-from src.utils.connector.blob_connector import get_blob_service
-
-from src.config import STORAGE_ACCOUNT, CONTAINER_NAME, SAS_EXPIRY_DAYS, TOP_K
-
-from azure.storage.blob import generate_blob_sas, BlobSasPermissions
+from azure.storage.blob import BlobSasPermissions, generate_blob_sas
+from dotenv import load_dotenv
+from fastapi import FastAPI, Request
 from pydantic import BaseModel, Field, validator
 
-import os
-import time
-import logging
-import tempfile
+from src.config import CONTAINER_NAME, SAS_EXPIRY_DAYS, STORAGE_ACCOUNT, TOP_K
+from src.utils.connector.blob_connector import get_blob_service
+from src.utils.retrieval.retriever import query_rag
+from src.utils.rfp.answer_agent import answer_all
+from src.utils.rfp.answerer import answer_question
+from src.utils.rfp.composer import compose_proposal
+from src.utils.rfp.orchestrator import extract_questions
+from src.utils.rfp.qa_verifier import verify
+from src.utils.store.vector_store import collection_count
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -76,6 +70,7 @@ async def log_requests(request: Request, call_next):
 
 # ─── Models ──────────────────────────────────────────────────────────────────
 
+
 class QueryRequest(BaseModel):
     question: str = Field(..., description="The question to search for")
     top_k: int = Field(TOP_K, description="Number of results to return")
@@ -90,8 +85,7 @@ class QueryRequest(BaseModel):
 class AnswerRequest(BaseModel):
     question: str = Field(..., description="The question to ask")
     top_k: int = Field(TOP_K, description="Number of chunks to retrieve")
-    include_chunks: bool = Field(
-        False, description="Include raw chunks in response")
+    include_chunks: bool = Field(False, description="Include raw chunks in response")
 
     @validator("question")
     def question_must_not_be_empty(cls, v):
@@ -101,11 +95,9 @@ class AnswerRequest(BaseModel):
 
 
 class PipelineRequest(BaseModel):
-    filename: str = Field(...,
-                          description="RFP filename in blob rfp-inputs/ folder")
+    filename: str = Field(..., description="RFP filename in blob rfp-inputs/ folder")
     top_k: int = Field(TOP_K, description="Chunks to retrieve per question")
-    max_questions: int = Field(
-        0, description="Maximum questions to process. 0 = all questions.")
+    max_questions: int = Field(0, description="Maximum questions to process. 0 = all questions.")
 
 
 class QueryResponse(BaseModel):
@@ -136,6 +128,7 @@ class PipelineResponse(BaseModel):
 
 # ─── Routes ──────────────────────────────────────────────────────────────────
 
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -156,9 +149,7 @@ def query(request: QueryRequest):
 @app.post("/answer", response_model=AnswerResponse)
 def answer(request: AnswerRequest):
     result = answer_question(
-        request.question,
-        top_k=request.top_k,
-        include_chunks=request.include_chunks
+        request.question, top_k=request.top_k, include_chunks=request.include_chunks
     )
     return result
 
@@ -185,8 +176,7 @@ def pipeline(request: PipelineRequest):
     ext = os.path.splitext(request.filename)[1].lower()
 
     service = get_blob_service()
-    blob_client = service.get_blob_client(
-        container=CONTAINER_NAME, blob=blob_path)
+    blob_client = service.get_blob_client(container=CONTAINER_NAME, blob=blob_path)
 
     if not blob_client.exists():
         raise ValueError(f"RFP not found in blob: {blob_path}")
@@ -201,9 +191,10 @@ def pipeline(request: PipelineRequest):
     all_questions = extract_questions(tmp_path)
     os.unlink(tmp_path)
 
-    questions = all_questions[:request.max_questions] if request.max_questions > 0 else all_questions
-    logger.info(
-        f"[pipeline] Extracted {len(all_questions)} questions, processing {len(questions)}")
+    questions = (
+        all_questions[: request.max_questions] if request.max_questions > 0 else all_questions
+    )
+    logger.info(f"[pipeline] Extracted {len(all_questions)} questions, processing {len(questions)}")
 
     # step 2: answer
     results = answer_all(questions, top_k=request.top_k)
@@ -220,8 +211,7 @@ def pipeline(request: PipelineRequest):
 
     # upload to blob
     output_blob_path = f"rfp-outputs/{output_filename}"
-    output_blob_client = service.get_blob_client(
-        container=CONTAINER_NAME, blob=output_blob_path)
+    output_blob_client = service.get_blob_client(container=CONTAINER_NAME, blob=output_blob_path)
     with open(output_path, "rb") as f:
         output_blob_client.upload_blob(f, overwrite=True)
     os.unlink(output_path)
@@ -234,7 +224,7 @@ def pipeline(request: PipelineRequest):
         blob_name=output_blob_path,
         account_key=os.getenv("AZURE_STORAGE_KEY"),
         permission=BlobSasPermissions(read=True),
-        expiry=expiry
+        expiry=expiry,
     )
     output_url = f"https://{STORAGE_ACCOUNT}.blob.core.windows.net/{CONTAINER_NAME}/{output_blob_path}?{sas_token}"
 
@@ -242,7 +232,8 @@ def pipeline(request: PipelineRequest):
     questions_flagged = sum(1 for r in verified if not r.get("verified", True))
 
     logger.info(
-        f"[pipeline] Done. {questions_verified}/{len(verified)} verified. Output: {output_blob_path}")
+        f"[pipeline] Done. {questions_verified}/{len(verified)} verified. Output: {output_blob_path}"
+    )
 
     return PipelineResponse(
         status="completed",
@@ -253,11 +244,12 @@ def pipeline(request: PipelineRequest):
         questions_flagged=questions_flagged,
         output_filename=output_filename,
         output_url=output_url,
-        output_url_expires=expiry.strftime("%Y-%m-%d %H:%M UTC")
+        output_url_expires=expiry.strftime("%Y-%m-%d %H:%M UTC"),
     )
 
 
 # ─── OpenAPI ─────────────────────────────────────────────────────────────────
+
 
 def custom_openapi():
     """
@@ -285,13 +277,13 @@ def custom_openapi():
                                     "required": ["question"],
                                     "properties": {
                                         "question": {"type": "string"},
-                                        "top_k": {"type": "integer", "default": 5}
-                                    }
+                                        "top_k": {"type": "integer", "default": 5},
+                                    },
                                 }
                             }
-                        }
+                        },
                     },
-                    "responses": {"200": {"description": "Successful response"}}
+                    "responses": {"200": {"description": "Successful response"}},
                 }
             },
             "/answer": {
@@ -308,13 +300,13 @@ def custom_openapi():
                                     "properties": {
                                         "question": {"type": "string"},
                                         "top_k": {"type": "integer", "default": 5},
-                                        "include_chunks": {"type": "boolean", "default": False}
-                                    }
+                                        "include_chunks": {"type": "boolean", "default": False},
+                                    },
                                 }
                             }
-                        }
+                        },
                     },
-                    "responses": {"200": {"description": "Successful response"}}
+                    "responses": {"200": {"description": "Successful response"}},
                 }
             },
             "/pipeline": {
@@ -331,18 +323,18 @@ def custom_openapi():
                                     "properties": {
                                         "filename": {
                                             "type": "string",
-                                            "description": "RFP filename in blob rfp-inputs/ folder"
+                                            "description": "RFP filename in blob rfp-inputs/ folder",
                                         },
                                         "top_k": {"type": "integer", "default": 8},
                                         "max_questions": {
                                             "type": "integer",
                                             "default": 0,
-                                            "description": "0 = all questions"
-                                        }
-                                    }
+                                            "description": "0 = all questions",
+                                        },
+                                    },
                                 }
                             }
-                        }
+                        },
                     },
                     "responses": {
                         "200": {
@@ -360,16 +352,16 @@ def custom_openapi():
                                             "questions_flagged": {"type": "integer"},
                                             "output_filename": {"type": "string"},
                                             "output_url": {"type": "string"},
-                                            "output_url_expires": {"type": "string"}
-                                        }
+                                            "output_url_expires": {"type": "string"},
+                                        },
                                     }
                                 }
-                            }
+                            },
                         }
-                    }
+                    },
                 }
-            }
-        }
+            },
+        },
     }
 
 

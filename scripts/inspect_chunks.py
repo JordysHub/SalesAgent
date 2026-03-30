@@ -1,27 +1,22 @@
 # scripts/inspect_chunks.py
-import os
 import argparse
+import os
+from collections import Counter, defaultdict
+
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
-from collections import Counter, defaultdict
 
 load_dotenv()
 
 parser = argparse.ArgumentParser(description="Inspect Qdrant chunks")
-parser.add_argument("--duplicates", action="store_true",
-                    help="Check for duplicate chunks")
-parser.add_argument("--file", type=str, default=None,
-                    help="Filter by filename")
+parser.add_argument("--duplicates", action="store_true", help="Check for duplicate chunks")
+parser.add_argument("--file", type=str, default=None, help="Filter by filename")
 args = parser.parse_args()
 
-client = QdrantClient(url=os.getenv("QDRANT_URL"),
-                      api_key=os.getenv("QDRANT_API_KEY"))
+client = QdrantClient(url=os.getenv("QDRANT_URL"), api_key=os.getenv("QDRANT_API_KEY"))
 
 results = client.scroll(
-    collection_name="rag_docs",
-    limit=1000,
-    with_payload=True,
-    with_vectors=False
+    collection_name="rag_docs", limit=1000, with_payload=True, with_vectors=False
 )[0]
 
 if args.file:
@@ -54,10 +49,9 @@ for filename, chunks in sorted(by_file.items()):
 if args.duplicates:
     print("\nDuplicate check:")
     seen_ids = Counter([r.id for r in results])
-    seen_keys = Counter([
-        f"{r.payload.get('filename')}::chunk::{r.payload.get('chunk_index')}"
-        for r in results
-    ])
+    seen_keys = Counter(
+        [f"{r.payload.get('filename')}::chunk::{r.payload.get('chunk_index')}" for r in results]
+    )
     duplicates = {k: v for k, v in seen_keys.items() if v > 1}
     if duplicates:
         print(f"  {len(duplicates)} duplicate(s) found:")

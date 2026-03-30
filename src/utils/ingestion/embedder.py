@@ -1,5 +1,6 @@
 # src/utils/ingestion/embedder.py
 from fastembed import TextEmbedding
+
 from src.config import EMBED_MODEL
 
 _model = None

@@ -1,9 +1,11 @@
 # src/utils/store/vector_store.py
 import os
-from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct
 import uuid
-from src.config import VECTOR_SIZE, QDRANT_URL, QDRANT_API_KEY, COLLECTION_NAME
+
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, PointStruct, VectorParams
+
+from src.config import COLLECTION_NAME, QDRANT_API_KEY, QDRANT_URL, VECTOR_SIZE
 
 _client = None
 
@@ -21,8 +23,7 @@ def get_collection():
     if COLLECTION_NAME not in existing:
         client.create_collection(
             collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(
-                size=VECTOR_SIZE, distance=Distance.COSINE),
+            vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
         )
         print(f"[store] Created collection: {COLLECTION_NAME}")
     return client
@@ -34,7 +35,7 @@ def add_chunks(chunks, embeddings, metadata, ids):
         PointStruct(
             id=str(uuid.uuid5(uuid.NAMESPACE_DNS, id_)),
             vector=embedding,
-            payload={**meta, "text": chunk}
+            payload={**meta, "text": chunk},
         )
         for chunk, embedding, meta, id_ in zip(chunks, embeddings, metadata, ids)
     ]

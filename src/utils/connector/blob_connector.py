@@ -1,9 +1,11 @@
-import os
 import json
+import os
 from datetime import timezone
-from dotenv import load_dotenv
+
 from azure.storage.blob import BlobServiceClient
-from src.config import STORAGE_ACCOUNT, STORAGE_KEY, CONTAINER_NAME
+from dotenv import load_dotenv
+
+from src.config import CONTAINER_NAME, STORAGE_ACCOUNT, STORAGE_KEY
 
 load_dotenv()
 
@@ -14,8 +16,7 @@ SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt", ".md"}
 
 def get_blob_service() -> BlobServiceClient:
     return BlobServiceClient(
-        account_url=f"https://{STORAGE_ACCOUNT}.blob.core.windows.net",
-        credential=STORAGE_KEY
+        account_url=f"https://{STORAGE_ACCOUNT}.blob.core.windows.net", credential=STORAGE_KEY
     )
 
 
@@ -28,30 +29,29 @@ def list_blobs() -> list[dict]:
         if ext in SUPPORTED_EXTENSIONS and blob.name != REGISTRY_BLOB:
             if blob.name.startswith("rfp-inputs/") or blob.name.startswith("rfp-outputs/"):
                 continue
-            last_modified = blob.last_modified.astimezone(
-                timezone.utc).isoformat()
-            blobs.append({
-                "filename": blob.name,
-                "extension": ext,
-                "last_modified": last_modified,
-                "size": blob.size,
-            })
+            last_modified = blob.last_modified.astimezone(timezone.utc).isoformat()
+            blobs.append(
+                {
+                    "filename": blob.name,
+                    "extension": ext,
+                    "last_modified": last_modified,
+                    "size": blob.size,
+                }
+            )
     print(f"[blob] Found {len(blobs)} document(s) in blob")
     return blobs
 
 
 def download_blob(filename: str, dest_path: str):
     service = get_blob_service()
-    blob_client = service.get_blob_client(
-        container=CONTAINER_NAME, blob=filename)
+    blob_client = service.get_blob_client(container=CONTAINER_NAME, blob=filename)
     with open(dest_path, "wb") as f:
         f.write(blob_client.download_blob().readall())
 
 
 def load_registry() -> dict:
     service = get_blob_service()
-    blob_client = service.get_blob_client(
-        container=CONTAINER_NAME, blob=REGISTRY_BLOB)
+    blob_client = service.get_blob_client(container=CONTAINER_NAME, blob=REGISTRY_BLOB)
     try:
         data = blob_client.download_blob().readall()
         registry = json.loads(data)
@@ -64,10 +64,6 @@ def load_registry() -> dict:
 
 def save_registry(registry: dict):
     service = get_blob_service()
-    blob_client = service.get_blob_client(
-        container=CONTAINER_NAME, blob=REGISTRY_BLOB)
-    blob_client.upload_blob(
-        json.dumps(registry, indent=2).encode(),
-        overwrite=True
-    )
+    blob_client = service.get_blob_client(container=CONTAINER_NAME, blob=REGISTRY_BLOB)
+    blob_client.upload_blob(json.dumps(registry, indent=2).encode(), overwrite=True)
     print(f"[registry] Saved registry with {len(registry)} entries")

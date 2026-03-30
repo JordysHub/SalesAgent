@@ -1,39 +1,34 @@
 # scripts/delete_source.py
-from src.utils.connector.blob_connector import load_registry, save_registry
-from qdrant_client.models import Filter, FieldCondition, MatchValue, PayloadSchemaType
-from qdrant_client import QdrantClient
-from dotenv import load_dotenv
 import os
 import sys
 
+from dotenv import load_dotenv
+from qdrant_client import QdrantClient
+from qdrant_client.models import FieldCondition, Filter, MatchValue, PayloadSchemaType
+
+from src.utils.connector.blob_connector import load_registry, save_registry
+
 load_dotenv()
 
-client = QdrantClient(url=os.getenv("QDRANT_URL"),
-                      api_key=os.getenv("QDRANT_API_KEY"))
+client = QdrantClient(url=os.getenv("QDRANT_URL"), api_key=os.getenv("QDRANT_API_KEY"))
 
 
 def get_all_sources():
     results = client.scroll(
-        collection_name="rag_docs",
-        limit=1000,
-        with_payload=True,
-        with_vectors=False
+        collection_name="rag_docs", limit=1000, with_payload=True, with_vectors=False
     )[0]
     return list({r.payload.get("filename") for r in results if r.payload.get("filename")})
 
 
 def delete_source(source: str):
     client.create_payload_index(
-        collection_name="rag_docs",
-        field_name="filename",
-        field_schema=PayloadSchemaType.KEYWORD
+        collection_name="rag_docs", field_name="filename", field_schema=PayloadSchemaType.KEYWORD
     )
     client.delete(
         collection_name="rag_docs",
         points_selector=Filter(
-            must=[FieldCondition(
-                key="filename", match=MatchValue(value=source))]
-        )
+            must=[FieldCondition(key="filename", match=MatchValue(value=source))]
+        ),
     )
     print(f"Deleted chunks: {source}")
 

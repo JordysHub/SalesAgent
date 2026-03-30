@@ -1,5 +1,6 @@
 # src/utils/ingestion/chunker.py
 import re
+
 import tiktoken
 
 ENCODING = tiktoken.get_encoding("cl100k_base")
@@ -11,13 +12,13 @@ def count_tokens(text: str) -> int:
 
 def split_into_sentences(text: str) -> list[str]:
     """Split text into sentences using punctuation boundaries."""
-    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
     return [s.strip() for s in sentences if s.strip()]
 
 
 def split_into_paragraphs(text: str) -> list[str]:
     """Split text into paragraphs on double newlines."""
-    paragraphs = re.split(r'\n\s*\n', text.strip())
+    paragraphs = re.split(r"\n\s*\n", text.strip())
     return [p.strip() for p in paragraphs if p.strip()]
 
 

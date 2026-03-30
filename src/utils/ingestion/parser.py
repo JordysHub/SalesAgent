@@ -27,6 +27,7 @@ def _parse_text(path: str) -> str:
 
 def _parse_pdf(path: str) -> str:
     from pypdf import PdfReader
+
     reader = PdfReader(path)
     text = ""
     for page in reader.pages:
@@ -36,6 +37,7 @@ def _parse_pdf(path: str) -> str:
 
 def _parse_docx(path: str) -> str:
     from docx import Document
+
     doc = Document(path)
     parts = []
 
@@ -47,9 +49,7 @@ def _parse_docx(path: str) -> str:
     # Extract tables
     for table in doc.tables:
         for row in table.rows:
-            row_text = " | ".join(
-                cell.text.strip() for cell in row.cells if cell.text.strip()
-            )
+            row_text = " | ".join(cell.text.strip() for cell in row.cells if cell.text.strip())
             if row_text:
                 parts.append(row_text)
 

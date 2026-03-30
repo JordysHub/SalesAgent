@@ -1,6 +1,8 @@
 import os
 import sys
+
 from dotenv import load_dotenv
+
 from src.utils.connector.blob_connector import load_registry
 
 load_dotenv()

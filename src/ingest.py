@@ -1,40 +1,51 @@
 # src/ingest.py
-import os
 import hashlib
+import os
 import tempfile
 from datetime import datetime, timezone
-from dotenv import load_dotenv
 
-from src.utils.connector.blob_connector import (
-    list_blobs, download_blob, load_registry, save_registry
+from dotenv import load_dotenv
+from qdrant_client import QdrantClient
+from qdrant_client.models import FieldCondition, Filter, MatchValue, PayloadSchemaType
+
+from src.config import (
+    CHUNK_OVERLAP,
+    CHUNK_SIZE,
+    DOCS_PATH,
+    EMBED_MODEL,
+    QDRANT_API_KEY,
+    QDRANT_URL,
 )
-from src.utils.ingestion.parser import parse_document
+from src.utils.connector.blob_connector import (
+    download_blob,
+    list_blobs,
+    load_registry,
+    save_registry,
+)
 from src.utils.ingestion.chunker import chunk_text
 from src.utils.ingestion.embedder import embed_texts
+from src.utils.ingestion.parser import parse_document
 from src.utils.store.vector_store import add_chunks, collection_count
-from qdrant_client import QdrantClient
-from qdrant_client.models import Filter, FieldCondition, MatchValue, PayloadSchemaType
-
-from src.config import EMBED_MODEL, CHUNK_SIZE, CHUNK_OVERLAP, DOCS_PATH, QDRANT_URL, QDRANT_API_KEY
 
 load_dotenv()
+
 
 def make_chunk_id(filename: str, chunk_index: int) -> str:
     raw = f"{filename}::chunk::{chunk_index}"
     return hashlib.md5(raw.encode()).hexdigest()
 
+
 def delete_source(client: QdrantClient, filename: str):
     client.create_payload_index(
-        collection_name="rag_docs",
-        field_name="filename",
-        field_schema=PayloadSchemaType.KEYWORD
+        collection_name="rag_docs", field_name="filename", field_schema=PayloadSchemaType.KEYWORD
     )
     client.delete(
         collection_name="rag_docs",
         points_selector=Filter(
             must=[FieldCondition(key="filename", match=MatchValue(value=filename))]
-        )
+        ),
     )
+
 
 def ingest():
     print("=== RAG Ingestion Pipeline ===")
@@ -127,7 +138,10 @@ def ingest():
 
     save_registry(registry)
 
-    print(f"\n=== Done. Ingested: {ingested_count} | Skipped: {skipped_count} | Total chunks: {collection_count()} ===")
+    print(
+        f"\n=== Done. Ingested: {ingested_count} | Skipped: {skipped_count} | Total chunks: {collection_count()} ==="
+    )
+
 
 if __name__ == "__main__":
     ingest()
