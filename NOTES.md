@@ -11,7 +11,7 @@ AI-powered RFP response system that automatically generates proposal documents f
 - Groq (llama-3.3-70b-versatile) — LLM for answer generation and orchestration
 - Azure Blob Storage — document storage (knowledge base + RFPs + proposals)
 - GitHub Actions — CI/CD for ingestion and deployment
-- Amethyst Studio — company agent platform
+- Amethyst Studio — company agent platform (future uncertain, may be replaced)
 
 **Azure resources:**
 - Container App: `rag-api` | Resource group: `rag-rg`
@@ -53,6 +53,25 @@ data/
   ├── rfp-outputs/           ← generated proposals (local, gitignored)
   └── rfp-questions/         ← extracted question JSON files (local, gitignored)
 ```
+
+---
+
+## Architectural Decisions Log
+
+This section records non-obvious design choices so they can be revisited as the system matures. Each entry notes the decision, the rationale, and what would need to change to reverse it.
+
+| # | Decision | Rationale | How to change |
+|---|---|---|---|
+| 1 | LLM only synthesises, never retrieves | Prevents hallucinated sources — retrieval is deterministic vector search only | No change needed; retrieval agent pattern is structural |
+| 2 | Single unified Qdrant collection (`rag_docs`) | Simplicity — all document types in one index, filtered by metadata | Split into multiple collections if retrieval quality degrades across doc types |
+| 3 | QA verification as a separate pipeline step with retry loop | Grounding checks must be structural, not just a prompt instruction | Remove `qa_verifier.py` step and fold into answerer prompt if latency becomes unacceptable |
+| 4 | All LLM calls through `llm_client.py` | Provider-agnostic — swap Groq for Azure OpenAI by changing one file and env vars | Add new provider function in `llm_client.py`, update `LLM_PROVIDER` env var |
+| 5 | Tables ingested as one chunk per table | Preserves table structure as a single retrievable unit; splitting by row loses row-column relationships | Change `parse_document()` in `parser.py` — split large tables by row groups if chunk size becomes an issue |
+| 6 | Image descriptions via vision LLM, stored as text chunks in Qdrant | No separate image embedding index needed; description quality depends on vision model | Replace vision LLM with dedicated multimodal embeddings if retrieval quality on images is poor |
+| 7 | Vision LLM provider: Groq (`llama-4-scout-17b`) during development | Free tier, sufficient for testing; not production quality | Set `VISION_PROVIDER=azure_openai` in env and implement `_azure_openai_vision()` in `llm_client.py` |
+| 8 | `content_type` metadata on all chunks (`text`, `table`, `image`) | Enables filtering, debugging, and future per-type retrieval strategies | Already in place — extend values if new content types are added |
+| 9 | Registry pattern (`registry.json` in blob) | Prevents redundant re-ingestion on unchanged files | Remove registry checks in `ingest.py` if always-reindex is preferred |
+| 10 | Proposal output filename includes timestamp | Prevents silent overwrites on each pipeline run | Remove `timestamp` from filename construction in `api.py` if versioning is handled elsewhere |
 
 ---
 
@@ -120,6 +139,11 @@ data/
 | `make logs` | Stream live Azure container logs (last 50 lines) |
 | `make logs-history` | Show last 200 log lines, filtered to endpoint calls only |
 
+### Linting
+| Command | Description |
+|---|---|
+| `make lint` | Run Black, isort, flake8 across src/ and scripts/ |
+
 ---
 
 ## Parameter Tuning
@@ -134,12 +158,16 @@ All tunable parameters are centralised in `src/config.py` and read from environm
 | `MIN_SCORE` | 0.25 | Minimum similarity score to include a chunk. Higher = stricter |
 | `LOW_CONFIDENCE` | 0.3 | Avg score below this flags answer as low confidence |
 | `TEMPERATURE` | 0.0 | LLM temperature. 0 = deterministic, 0.5 = more varied |
+| `MAX_TOKENS` | 1024 | Max tokens in LLM response. Increase for longer answers |
+| `LLM_PROVIDER` | groq | LLM provider. Options: `groq`, `azure_openai` |
+| `VISION_PROVIDER` | groq | Vision LLM provider. Options: `groq`, `azure_openai` |
 | `QA_MAX_RETRIES` | 2 | Max retries for failed QA verification |
 | `QA_RETRY_TOP_K` | 3 | Extra chunks added to top_k on each retry |
 | `CHUNK_SIZE` | 256 | Tokens per chunk at ingestion time |
 | `CHUNK_OVERLAP` | 40 | Token overlap between chunks |
 | `EMBED_MODEL` | sentence-transformers/all-MiniLM-L6-v2 | Embedding model |
-| `GROQ_MODEL` | llama-3.3-70b-versatile | LLM model |
+| `GROQ_MODEL` | llama-3.3-70b-versatile | LLM model (text) |
+| `GROQ_VISION_MODEL` | meta-llama/llama-4-scout-17b-16e-instruct | Vision LLM model (Groq) |
 
 ### How to tune locally
 
@@ -342,17 +370,27 @@ QDRANT_API_KEY=
 GROQ_API_KEY=
 AZURE_STORAGE_KEY=
 
-# Non-sensitive config
+# LLM config
 GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_VISION_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
+LLM_PROVIDER=groq
+VISION_PROVIDER=groq
+MAX_TOKENS=1024
+
+# Embedding
 EMBED_MODEL=sentence-transformers/all-MiniLM-L6-v2
+
+# Ingestion
 CHUNK_SIZE=256
 CHUNK_OVERLAP=40
 DOCS_PATH=./data/documents
+
+# Azure Storage
 AZURE_STORAGE_ACCOUNT=ragdocuments1337
 AZURE_CONTAINER_NAME=documents
 SAS_EXPIRY_DAYS=7
 
-# Tunable params
+# Tunable retrieval params
 TOP_K=8
 MIN_SCORE=0.25
 LOW_CONFIDENCE=0.3
@@ -492,15 +530,18 @@ make download-proposal F="RFP_TechCorp_AI_Platform_2026.docx"
 ## Backlog
 
 ### Immediate
-- [ ] Fix agent not returning raw SAS URL — Amethyst Studio strips external URLs
-- [ ] Add timestamp to proposal output filename to preserve version history
-- [ ] Add length instruction to system prompt in answerer.py for more comprehensive answers
-- [ ] Remove all `sys.path.insert` lines now that `pip install -e .` is in place
+- [ ] Async `/pipeline` endpoint — return job ID immediately, poll `/pipeline/status/{job_id}` (timeout risk on full runs)
+
+### Ingestion — Vision & Tables (in progress)
+- [ ] Table extraction in `parser.py` — extract as markdown, one chunk per table (Decision #5)
+- [ ] Image extraction in `parser.py` — pass to vision LLM, store description as text chunk
+- [ ] Add `content_type` metadata to all chunks (`text`, `table`, `image`)
+- [ ] Add `VISION_PROVIDER` and `GROQ_VISION_MODEL` to `config.py` and `.env.example`
+- [ ] Add vision call to `llm_client.py` — `chat_vision(image_bytes, prompt)` supporting `groq` and `azure_openai`
 
 ### Pipeline Improvements
-- [ ] Save intermediate results (answers JSON) to disk so composer can rerun without re-answering
-- [ ] Async `/pipeline` endpoint — return job ID immediately, poll `/pipeline/status/{job_id}`
 - [ ] Company DOCX template for proposal composer output — waiting for laptop access
+- [ ] Proposal output design decisions — structure, citation style, flagged answer handling
 
 ### Retrieval Quality (after real data)
 - [ ] Reranking layer — cross-encoder reranker after top-k retrieval
@@ -510,25 +551,19 @@ make download-proposal F="RFP_TechCorp_AI_Platform_2026.docx"
 - [ ] Tune TOP_K, CHUNK_SIZE, MIN_SCORE against real document corpus
 
 ### Knowledge Base Management
+- [ ] Company knowledge base ingestion — identify platform (SharePoint?), auth method, then crawl and ingest into Qdrant
 - [ ] Automated document lifecycle — blob deletions propagate to Qdrant + registry
 - [ ] Event Grid trigger on blob upload to auto-fire ingest workflow
-- [ ] `make registry` diff against `make inspect` to flag inconsistencies
-- [ ] `delete_source.py` warn if deleted file still exists in blob
 
 ### Infrastructure & DevOps
 - [ ] Log Analytics workspace for persistent queryable logs
-- [ ] Node.js 24 upgrade for GitHub Actions (required before June 2026)
 - [ ] User Delegation SAS for production (replaces account key SAS)
 - [ ] Add smoke test to ingest workflow — assert chunk count > 0
-
-### Access & Onboarding
-- [ ] Azure Storage Explorer setup guide for team members
-- [ ] Document blob folder structure and naming conventions
 
 ### Tests to Add
 - [ ] Unit test for qa_verifier logic
 - [ ] Unit test for chunker
-- [ ] Unit test for parser
+- [ ] Unit test for parser — assert table and image chunks are extracted
 - [ ] Unit test for embedder — assert vector length 384
 - [ ] Unit test for orchestrator — assert question structure
 - [ ] Version endpoint `/version` returning git commit SHA
@@ -536,21 +571,8 @@ make download-proposal F="RFP_TechCorp_AI_Platform_2026.docx"
 ### Azure Enterprise Migration
 - [ ] Azure subscription onboarding to company tenant
 - [ ] Migrate ACR, Container App, Blob Storage to company subscription
-- [ ] Switch Qdrant cloud to Azure AI Search
-- [ ] Replace Groq with Azure OpenAI for company policy compliance
+- [ ] Replace Groq with Azure OpenAI (model TBD, company policy requirement)
 - [ ] Add authentication to API endpoints (Azure AD / Entra ID)
 - [ ] Managed Identity for blob access (replaces storage account key)
 - [ ] SharePoint ingestion via Microsoft Graph API
-- [ ] Re-register Amethyst Studio actions with new URLs
-
-### Proposal Output Design (before company template)
-
-- [ ] Decide on proposal structure — cover page, table of contents, section per RFP category, or flat Q&A
-- [ ] Decide on answer format — full paragraphs vs bullet points vs mixed
-- [ ] Decide on source citation style — inline [source.docx], footnotes, or reference list at end of section
-- [ ] Decide whether flagged/unverified answers are included with warning, excluded entirely, or shown as "to be completed"
-- [ ] Decide on confidence indicators — show avg score per answer, show low confidence warning, or hide entirely from final output
-- [ ] Decide on metadata in output — date generated, RFP filename, questions answered/flagged counts, or clean document only
-- [ ] Define section order — follow RFP category order or reorder by Accenture's preferred proposal structure
-- [ ] Once decisions are made, update src/utils/rfp/composer.py accordingly
-- [ ] When company DOCX template is available, wire it in as the base document
+- [ ] Re-register agent actions with new URLs
