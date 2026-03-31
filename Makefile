@@ -125,4 +125,4 @@ test-local:
 lint:
 	black src/ scripts/
 	isort src/ scripts/
-	flake8 --max-line-length=100 --extend-ignore=E203,W503 src/ scripts/
+	flake8 --max-line-length=120 --extend-ignore=E203,W503,E402 src/ scripts/

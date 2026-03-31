@@ -38,7 +38,7 @@ filename = args.file
 ext = os.path.splitext(filename)[1].lower()
 
 # connect to blob
-print(f"[ingest_source] Connecting to blob storage...")
+print("[ingest_source] Connecting to blob storage...")
 blob_service = get_blob_service()
 blob_client = blob_service.get_blob_client(container=CONTAINER_NAME, blob=filename)
 
@@ -74,7 +74,7 @@ text = parse_document(doc)
 os.unlink(tmp_path)
 
 if not text.strip():
-    print(f"[ingest_source] Empty content, aborting.")
+    print("[ingest_source] Empty content, aborting.")
     sys.exit(1)
 
 # chunk + embed

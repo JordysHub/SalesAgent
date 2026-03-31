@@ -1,7 +1,5 @@
 # src/utils/retrieval/retriever.py
-import os
-
-from src.config import MIN_SCORE, TOP_K
+from src.config import TOP_K
 from src.utils.ingestion.embedder import embed_texts
 from src.utils.store.vector_store import COLLECTION_NAME, get_client
 

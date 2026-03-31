@@ -11,8 +11,6 @@ Currently uses a plain DOCX structure. Intended to be replaced with the
 company DOCX template once available — only this file needs to change.
 """
 
-import os
-
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt, RGBColor

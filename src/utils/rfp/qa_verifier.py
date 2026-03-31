@@ -63,7 +63,7 @@ def verify(results: list[dict], answer_fn, top_k: int = 5) -> list[dict]:
                     }
                 except Exception as e:
                     if "rate_limit" in str(e).lower() or "429" in str(e):
-                        print(f"[qa] Rate limit hit — waiting 60s...")
+                        print("[qa] Rate limit hit — waiting 60s...")
                         time.sleep(60)
                         continue
                     raise

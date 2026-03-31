@@ -28,7 +28,7 @@ def extract_questions(filepath: str) -> list[dict]:
     text = parse_document(doc)
 
     print(f"[orchestrator] Parsed {len(text)} characters from {os.path.basename(filepath)}")
-    print(f"[orchestrator] Extracting questions via LLM...")
+    print("[orchestrator] Extracting questions via LLM...")
 
     prompt = f"""You are a procurement analyst. Extract all questions that a respondent must answer from the RFP document below.
 

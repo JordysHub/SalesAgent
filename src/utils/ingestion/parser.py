@@ -1,5 +1,4 @@
 # rag/ingestion/parser.py
-from pathlib import Path
 
 
 def parse_document(file_meta: dict) -> str:

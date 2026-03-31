@@ -11,7 +11,6 @@ from qdrant_client.models import FieldCondition, Filter, MatchValue, PayloadSche
 from src.config import (
     CHUNK_OVERLAP,
     CHUNK_SIZE,
-    DOCS_PATH,
     EMBED_MODEL,
     QDRANT_API_KEY,
     QDRANT_URL,

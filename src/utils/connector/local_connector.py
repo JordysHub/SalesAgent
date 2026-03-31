@@ -1,5 +1,4 @@
 # rag/connector/local_connector.py
-import os
 from pathlib import Path
 
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt", ".md"}

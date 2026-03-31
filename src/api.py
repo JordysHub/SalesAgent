@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from pydantic import BaseModel, Field, validator
 
-from src.config import CONTAINER_NAME, SAS_EXPIRY_DAYS, STORAGE_ACCOUNT, TOP_K
+from src.config import CONTAINER_NAME, STORAGE_ACCOUNT, TOP_K
 from src.utils.connector.blob_connector import get_blob_service
 from src.utils.retrieval.retriever import query_rag
 from src.utils.rfp.answer_agent import answer_all
@@ -159,13 +159,15 @@ def pipeline(request: PipelineRequest):
     """
     Trigger the full RFP pipeline for the given filename.
 
-    The pipeline consists of four steps: extract questions from the RFP, answer the questions using the knowledge base, verify the answers, and compose the proposal document.
+    The pipeline consists of four steps: extract questions from the RFP, answer the questions using the knowledge base,
+    verify the answers, and compose the proposal document.
 
     Parameters:
         request (PipelineRequest): the request containing the RFP filename and other options
 
     Returns:
-        PipelineResponse: the response containing the pipeline status, RFP filename, question counts, output filename, and output URL
+        PipelineResponse: the response containing the pipeline status, RFP filename,
+        question counts, output filename, and output URL
 
     Raises:
         ValueError: if the RFP is not found in the blob

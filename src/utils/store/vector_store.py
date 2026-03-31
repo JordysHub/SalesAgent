@@ -1,5 +1,4 @@
 # src/utils/store/vector_store.py
-import os
 import uuid
 
 from qdrant_client import QdrantClient

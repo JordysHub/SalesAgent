@@ -15,11 +15,9 @@ INSUFFICIENT CONTEXT rather than fabricating a response.
 Used directly by the answer agent and by the QA verifier during retries.
 """
 
-import os
-
 from dotenv import load_dotenv
 
-from src.config import GROQ_MODEL, LOW_CONFIDENCE, TEMPERATURE, TOP_K
+from src.config import LOW_CONFIDENCE, TEMPERATURE, TOP_K
 from src.utils.llm_client import chat
 from src.utils.retrieval.retriever import query_rag
 

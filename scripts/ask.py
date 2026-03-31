@@ -43,7 +43,7 @@ if args.endpoint == "answer":
     print(f"Chunks used: {data['chunks_used']}")
     print(f"Avg score  : {data.get('avg_score', 'n/a')}")
     print(f"Low conf   : {data.get('low_confidence', False)}")
-    print(f"--- Config ---")
+    print("--- Config ---")
     print(f"TOP_K      : {os.getenv('TOP_K', 'default')}")
     print(f"MIN_SCORE  : {os.getenv('MIN_SCORE', 'default')}")
     print(f"LOW_CONF   : {os.getenv('LOW_CONFIDENCE', 'default')}")
