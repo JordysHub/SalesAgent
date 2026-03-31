@@ -43,3 +43,6 @@ QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 COLLECTION_NAME = "rag_docs"
 VECTOR_SIZE = 384  # must match EMBED_MODEL output dimension
+
+VISION_PROVIDER      = os.getenv("VISION_PROVIDER", "groq")
+GROQ_VISION_MODEL    = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")

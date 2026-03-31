@@ -1,3 +1,4 @@
+# scripts/debug_parse.py
 import argparse
 import os
 import sys
@@ -17,8 +18,13 @@ if not os.path.exists(filepath):
     sys.exit(1)
 
 doc = {"path": filepath, "filename": args.file, "extension": ext}
-text = parse_document(doc)
+chunks = parse_document(doc)
+
 print(f"\n{args.file}")
-print(f"Characters extracted: {len(text)}")
-print(f"First 500 chars:\n{text[:500]}")
+print(f"Total chunks: {len(chunks)}")
 print("---")
+
+for i, chunk in enumerate(chunks):
+    print(f"\nChunk {i + 1} | type: {chunk['content_type']} | chars: {len(chunk['text'])}")
+    print(chunk["text"][:300])
+    print("---")

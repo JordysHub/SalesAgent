@@ -84,10 +84,10 @@ def ingest():
             tmp_path = tmp.name
         download_blob(filename, tmp_path)
 
-        # parse
+        # parse — returns list of content chunks
         try:
             doc = {"path": tmp_path, "filename": filename, "extension": blob["extension"]}
-            text = parse_document(doc)
+            content_chunks = parse_document(doc)
         except Exception as e:
             print(f"[ingest] Failed to parse {filename}: {e}")
             os.unlink(tmp_path)
@@ -96,19 +96,31 @@ def ingest():
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
 
-        if not text.strip():
+        if not content_chunks:
             print(f"[ingest] Empty content, skipping: {filename}")
             continue
 
         # delete old chunks
         delete_source(qdrant, filename)
 
-        # chunk + embed
-        chunks = chunk_text(text, chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP)
-        chunk_count = len(chunks)
+        # chunk text content, keep table/image chunks as-is
+        all_chunks = []
+        for content_chunk in content_chunks:
+            if content_chunk["content_type"] == "text":
+                sub_chunks = chunk_text(
+                    content_chunk["text"], chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP
+                )
+                for sub in sub_chunks:
+                    all_chunks.append({"text": sub, "content_type": "text"})
+            else:
+                # tables and image descriptions are stored as single chunks
+                all_chunks.append(content_chunk)
+
+        chunk_count = len(all_chunks)
         print(f"[ingest] {chunk_count} chunks from {filename}")
 
-        embeddings = embed_texts(chunks, model_name=EMBED_MODEL)
+        texts = [c["text"] for c in all_chunks]
+        embeddings = embed_texts(texts, model_name=EMBED_MODEL)
         ids = [make_chunk_id(filename, i) for i in range(chunk_count)]
         metadata = [
             {
@@ -118,12 +130,13 @@ def ingest():
                 "chunk_count": chunk_count,
                 "chunk_size": CHUNK_SIZE,
                 "chunk_overlap": CHUNK_OVERLAP,
+                "content_type": all_chunks[i]["content_type"],
                 "ingested_at": ingested_at,
             }
             for i in range(chunk_count)
         ]
 
-        add_chunks(chunks, embeddings, metadata, ids)
+        add_chunks(texts, embeddings, metadata, ids)
 
         # update registry
         registry[filename] = {

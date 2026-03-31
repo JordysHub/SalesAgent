@@ -65,24 +65,37 @@ client.create_payload_index(
 )
 client.delete(
     collection_name="rag_docs",
-    points_selector=Filter(must=[FieldCondition(key="filename", match=MatchValue(value=filename))]),
+    points_selector=Filter(
+        must=[FieldCondition(key="filename", match=MatchValue(value=filename))]
+    ),
 )
 
-# parse
+# parse — returns list of content chunks
 doc = {"path": tmp_path, "filename": filename, "extension": ext}
-text = parse_document(doc)
+content_chunks = parse_document(doc)
 os.unlink(tmp_path)
 
-if not text.strip():
+if not content_chunks:
     print("[ingest_source] Empty content, aborting.")
     sys.exit(1)
 
-# chunk + embed
-chunks = chunk_text(text, chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP)
-chunk_count = len(chunks)
+# chunk text content, keep table/image chunks as-is
+all_chunks = []
+for content_chunk in content_chunks:
+    if content_chunk["content_type"] == "text":
+        sub_chunks = chunk_text(
+            content_chunk["text"], chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP
+        )
+        for sub in sub_chunks:
+            all_chunks.append({"text": sub, "content_type": "text"})
+    else:
+        all_chunks.append(content_chunk)
+
+chunk_count = len(all_chunks)
 print(f"[ingest_source] {chunk_count} chunks created")
 
-embeddings = embed_texts(chunks, model_name=EMBED_MODEL)
+texts = [c["text"] for c in all_chunks]
+embeddings = embed_texts(texts, model_name=EMBED_MODEL)
 ingested_at = datetime.now(timezone.utc).isoformat()
 
 
@@ -100,12 +113,13 @@ metadata = [
         "chunk_count": chunk_count,
         "chunk_size": CHUNK_SIZE,
         "chunk_overlap": CHUNK_OVERLAP,
+        "content_type": all_chunks[i]["content_type"],
         "ingested_at": ingested_at,
     }
     for i in range(chunk_count)
 ]
 
-add_chunks(chunks, embeddings, metadata, ids)
+add_chunks(texts, embeddings, metadata, ids)
 
 # update registry
 registry = load_registry()
