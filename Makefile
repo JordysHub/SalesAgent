@@ -65,6 +65,14 @@ upload:
 		--pattern "*.txt" \
 		--pattern "*.md"
 
+upload-file:
+	az storage blob upload \
+		--account-name $(STORAGE_ACCOUNT) \
+		--container-name documents \
+		--name $(F) \
+		--file data/documents/$(F) \
+		--account-key $(shell grep AZURE_STORAGE_KEY .env | cut -d= -f2-)
+
 upload-rfp:
 	az storage blob upload \
 		--account-name ragdocuments1337 \
